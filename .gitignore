@@ -1,0 +1,10 @@
+node_modules
+dist
+.env
+.env.local
+.DS_Store
+server/node_modules
+ai-service/__pycache__
+ai-service/.venv
+firebase-service-account.json
+server/firebase-service-account.json

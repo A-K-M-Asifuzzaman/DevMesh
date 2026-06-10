@@ -1,0 +1,40 @@
+{
+  "name": "devmesh-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DevMesh AI — AI-powered developer collaboration platform (frontend)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@types/firebase": "^2.4.32",
+    "@types/gsap": "^1.20.2",
+    "clsx": "^2.1.1",
+    "firebase": "^12.14.0",
+    "framer-motion": "^11.3.19",
+    "gsap": "^3.15.0",
+    "lucide-react": "^0.428.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.1",
+    "recharts": "^2.12.7",
+    "socket.io-client": "^4.7.5",
+    "tailwind-merge": "^2.5.2",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.42",
+    "@types/react": "^18.3.4",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2"
+  }
+}

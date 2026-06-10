@@ -1,0 +1,64 @@
+import type { Response } from "express";
+import { z } from "zod";
+import { Team } from "../models/Team.js";
+import { Conversation } from "../models/Conversation.js";
+import type { AuthedRequest } from "../middleware/auth.js";
+
+const MEMBER_FIELDS = "name handle avatar availability trustScore role skills stack";
+
+const createSchema = z.object({
+  name: z.string().min(2),
+  tagline: z.string().optional().default(""),
+  openRoles: z.array(z.string()).optional().default([]),
+  stack: z.array(z.string()).optional().default([]),
+  stage: z.enum(["idea", "building", "launched"]).optional().default("idea"),
+});
+
+export async function myTeams(req: AuthedRequest, res: Response) {
+  const teams = await Team.find({ members: req.userId })
+    .populate("members", MEMBER_FIELDS)
+    .lean();
+  res.json({ teams });
+}
+
+export async function allTeams(req: AuthedRequest, res: Response) {
+  const teams = await Team.find()
+    .populate("members", MEMBER_FIELDS)
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean();
+  res.json({ teams });
+}
+
+export async function createTeam(req: AuthedRequest, res: Response) {
+  const body = createSchema.parse(req.body);
+  const team = await Team.create({ ...body, owner: req.userId, members: [req.userId] });
+
+  const convo = await Conversation.create({
+    kind: "team",
+    team: team._id,
+    participants: [req.userId],
+  });
+  team.conversation = convo._id;
+  await team.save();
+
+  const populated = await Team.findById(team._id).populate("members", MEMBER_FIELDS).lean();
+  res.status(201).json({ team: populated });
+}
+
+export async function joinTeam(req: AuthedRequest, res: Response) {
+  const team = await Team.findByIdAndUpdate(
+    req.params.id,
+    { $addToSet: { members: req.userId } },
+    { new: true },
+  ).populate("members", MEMBER_FIELDS).lean();
+
+  if (!team) return res.status(404).json({ error: "Team not found" });
+
+  if ((team as any).conversation) {
+    await Conversation.findByIdAndUpdate((team as any).conversation, {
+      $addToSet: { participants: req.userId },
+    });
+  }
+  res.json({ team });
+}

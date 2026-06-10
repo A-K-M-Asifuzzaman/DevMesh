@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  * {
+    border-color: theme("colors.line");
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-ink-950 text-slate-200 font-sans antialiased;
+    background-image: radial-gradient(
+        60% 50% at 50% 0%,
+        rgba(77, 124, 255, 0.08),
+        transparent 70%
+      ),
+      radial-gradient(40% 40% at 90% 10%, rgba(255, 77, 157, 0.06), transparent 70%);
+    min-height: 100vh;
+  }
+  ::selection {
+    background: rgba(52, 231, 228, 0.25);
+  }
+  /* Slim neon scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(52, 231, 228, 0.35);
+    background-clip: padding-box;
+  }
+}
+
+@layer components {
+  /* Glassmorphism surface */
+  .glass {
+    @apply rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl;
+    box-shadow: theme("boxShadow.card");
+  }
+  .glass-hover {
+    @apply transition-all duration-300 hover:border-white/20 hover:bg-white/[0.06];
+  }
+  /* Gradient text */
+  .text-grad {
+    @apply bg-neon-grad bg-clip-text text-transparent;
+  }
+  /* Hairline divider that fades */
+  .hairline {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.12),
+      transparent
+    );
+  }
+  /* Animated gradient border wrapper */
+  .glow-border {
+    position: relative;
+  }
+  .glow-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: theme("backgroundImage.neon-grad");
+    -webkit-mask: linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+/* Fine grain overlay for atmosphere */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Skeleton shimmer */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  animation: shimmer 1.6s infinite;
+}
