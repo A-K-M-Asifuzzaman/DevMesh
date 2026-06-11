@@ -1,12 +1,13 @@
-import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
-  Eye, Sparkles, Users, TrendingUp, ArrowUpRight, Plus,
+  Eye, Sparkles, Users, TrendingUp, ArrowUpRight, Plus, X,
+  ChevronRight, ChevronLeft, BookmarkCheck, Briefcase,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
@@ -17,6 +18,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { fmt } from "@/lib/utils";
+import type { Task, DevUser } from "@/types";
 
 function greeting() {
   const h = new Date().getHours();
@@ -32,10 +34,77 @@ const stagger = {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: activity, loading: aLoading } = useAsync(api.activity);
   const { data: matches, loading: mLoading } = useAsync(api.matches, []);
-  const { data: tasks, loading: tLoading } = useAsync(api.tasks);
+  const { data: rawTasks, loading: tLoading } = useAsync(api.tasks);
   const { data: teams } = useAsync(api.teams, []);
+
+  const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [shortlisted, setShortlisted] = useState<DevUser[]>([]);
+  const [shortlistLoading, setShortlistLoading] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskPriority, setTaskPriority] = useState<"low" | "med" | "high">("med");
+  const [savingTask, setSavingTask] = useState(false);
+  const [movingTask, setMovingTask] = useState<string | null>(null);
+  const taskInputRef = useRef<HTMLInputElement>(null);
+
+  const COLS = ["todo", "in_progress", "review", "done"] as const;
+  type Col = typeof COLS[number];
+
+  const moveTask = async (taskId: string, currentStatus: Col, dir: 1 | -1) => {
+    const idx = COLS.indexOf(currentStatus);
+    const nextIdx = idx + dir;
+    if (nextIdx < 0 || nextIdx >= COLS.length) return;
+    const nextStatus = COLS[nextIdx];
+    setMovingTask(taskId);
+    // Optimistic update
+    setTasks((prev) => prev?.map((t) => t.id === taskId ? { ...t, status: nextStatus } : t) ?? prev);
+    try {
+      await api.updateTask(taskId, { status: nextStatus });
+    } catch {
+      // Revert on failure
+      setTasks((prev) => prev?.map((t) => t.id === taskId ? { ...t, status: currentStatus } : t) ?? prev);
+    } finally {
+      setMovingTask(null);
+    }
+  };
+
+  // Sync rawTasks into local state so we can optimistically add tasks
+  useEffect(() => {
+    if (rawTasks) setTasks(rawTasks);
+  }, [rawTasks]);
+
+  useEffect(() => {
+    if (showTaskForm) taskInputRef.current?.focus();
+  }, [showTaskForm]);
+
+  useEffect(() => {
+    const ids: string[] = JSON.parse(localStorage.getItem("recruiter_shortlist") ?? "[]");
+    if (ids.length === 0) return;
+    setShortlistLoading(true);
+    Promise.all(ids.map((id) => api.user(id)))
+      .then((users) => setShortlisted(users.filter((u) => !!u) as DevUser[]))
+      .finally(() => setShortlistLoading(false));
+  }, []);
+
+  const handleAddTask = async () => {
+    if (!taskTitle.trim()) return;
+    const teamId = teams?.[0]?.id;
+    if (!teamId) return;
+    setSavingTask(true);
+    try {
+      const newTask = await api.createTask({ teamId, title: taskTitle.trim(), priority: taskPriority });
+      setTasks((prev) => [...(prev ?? []), newTask]);
+      setTaskTitle("");
+      setShowTaskForm(false);
+    } catch {
+      // silently fail — user can try again
+    } finally {
+      setSavingTask(false);
+    }
+  };
 
   const stats = useMemo(() => [
     { label: "Followers", value: fmt(user?.followers ?? 0), delta: "+followers", icon: Eye, tone: "cyan" as const },
@@ -43,6 +112,8 @@ export default function Dashboard() {
     { label: "Teams", value: String(teams?.length ?? 0), delta: "workspaces", icon: Users, tone: "lime" as const },
     { label: "Reputation", value: fmt(user?.rep ?? 0), delta: "rep score", icon: TrendingUp, tone: "blue" as const },
   ], [user, matches, teams]);
+
+  const hasTeam = teams && teams.length > 0;
 
   return (
     <div className="space-y-6">
@@ -144,49 +215,163 @@ export default function Dashboard() {
         </GlassCard>
       </div>
 
+      {/* Shortlisted developers */}
+      {(shortlistLoading || shortlisted.length > 0) && (
+        <GlassCard>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="font-display font-semibold text-white flex items-center gap-2">
+                <BookmarkCheck className="h-4 w-4 text-neon-cyan" /> Shortlisted
+              </h3>
+              <p className="text-xs text-slate-500">Developers you saved from Recruiter</p>
+            </div>
+            <button
+              onClick={() => navigate("/recruiter")}
+              className="flex items-center gap-1.5 text-xs text-neon-cyan hover:underline"
+            >
+              <Briefcase className="h-3.5 w-3.5" /> Manage
+            </button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {shortlistLoading
+              ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-36 shrink-0" />)
+              : shortlisted.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => navigate(`/profile/${u.id}`)}
+                    className="flex w-36 shrink-0 flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3 text-center transition hover:border-neon-cyan/30 hover:bg-neon-cyan/[0.04]"
+                  >
+                    <Avatar src={u.avatar} name={u.name} status={u.availability} size={44} />
+                    <div className="min-w-0 w-full">
+                      <p className="truncate text-sm font-medium text-white">{u.name}</p>
+                      <p className="truncate text-[11px] text-slate-500">{u.role || "Developer"}</p>
+                      <span className="mt-1 inline-block rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-slate-400">
+                        {u.trustScore} trust
+                      </span>
+                    </div>
+                  </button>
+                ))}
+          </div>
+        </GlassCard>
+      )}
+
       {/* Kanban preview */}
       <GlassCard>
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="font-display font-semibold text-white">
-              {teams && teams.length > 0 ? `${teams[0].name} · Board` : "Team Board"}
+              {hasTeam ? `${teams[0].name} · Board` : "Team Board"}
             </h3>
             <p className="text-xs text-slate-500">
-              {teams && teams.length > 0
+              {hasTeam
                 ? `Shared with ${teams[0].members.length} teammate${teams[0].members.length !== 1 ? "s" : ""}`
                 : "Join or create a team to see tasks"}
             </p>
           </div>
-          <Button variant="subtle" size="sm"><Plus className="h-3.5 w-3.5" /> Task</Button>
+          {hasTeam ? (
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => setShowTaskForm((v) => !v)}
+            >
+              {showTaskForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {showTaskForm ? "Cancel" : "Task"}
+            </Button>
+          ) : (
+            <Link to="/teams">
+              <Button variant="subtle" size="sm"><Plus className="h-3.5 w-3.5" /> Create team</Button>
+            </Link>
+          )}
         </div>
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-          {(["todo", "in_progress", "review", "done"] as const).map((col) => (
-            <div key={col} className="rounded-xl bg-white/[0.02] p-3">
-              <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
-                {col.replace("_", " ")}
-              </p>
-              <div className="space-y-2">
-                {tLoading || !tasks
-                  ? Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)
-                  : tasks
-                      .filter((t) => t.status === col)
-                      .map((t) => (
-                        <div key={t.id} className="rounded-lg border border-white/10 bg-ink-800/60 p-2.5">
-                          <p className="text-sm text-slate-200">{t.title}</p>
-                          <div className="mt-2 flex items-center justify-between">
-                            <Badge tone={t.priority === "high" ? "magenta" : t.priority === "med" ? "cyan" : "default"}>
-                              {t.priority}
-                            </Badge>
-                            {t.assignee && <Avatar src={t.assignee.avatar} name={t.assignee.name} size={22} />}
-                          </div>
-                        </div>
-                      ))}
-                {!tLoading && tasks?.filter((t) => t.status === col).length === 0 && (
-                  <p className="text-[11px] text-slate-600 text-center py-2">Empty</p>
-                )}
+
+        {/* Quick task form */}
+        <AnimatePresence>
+          {showTaskForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4 overflow-hidden"
+            >
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                <input
+                  ref={taskInputRef}
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
+                  placeholder="Task title…"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                />
+                <div className="flex items-center gap-2">
+                  <select
+                    value={taskPriority}
+                    onChange={(e) => setTaskPriority(e.target.value as "low" | "med" | "high")}
+                    className="rounded-lg border border-white/10 bg-ink-800 px-2 py-1 text-xs text-slate-300 outline-none"
+                  >
+                    <option value="low">Low</option>
+                    <option value="med">Med</option>
+                    <option value="high">High</option>
+                  </select>
+                  <Button size="sm" loading={savingTask} onClick={handleAddTask}>Add</Button>
+                </div>
               </div>
-            </div>
-          ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          {COLS.map((col) => {
+            const colIdx = COLS.indexOf(col);
+            return (
+              <div key={col} className="rounded-xl bg-white/[0.02] p-3">
+                <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
+                  {col.replace("_", " ")}
+                </p>
+                <div className="space-y-2">
+                  {tLoading || !tasks
+                    ? Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)
+                    : tasks
+                        .filter((t) => t.status === col)
+                        .map((t) => (
+                          <div key={t.id} className="rounded-lg border border-white/10 bg-ink-800/60 p-2.5">
+                            <p className="text-sm text-slate-200 leading-snug">{t.title}</p>
+                            <div className="mt-2 flex items-center gap-1">
+                              <Badge tone={t.priority === "high" ? "magenta" : t.priority === "med" ? "cyan" : "default"}>
+                                {t.priority}
+                              </Badge>
+                              {t.assignee && <Avatar src={t.assignee.avatar} name={t.assignee.name} size={20} />}
+                              <div className="ml-auto flex items-center gap-0.5">
+                                {colIdx > 0 && (
+                                  <button
+                                    disabled={movingTask === t.id}
+                                    onClick={() => moveTask(t.id, col, -1)}
+                                    title="Move back"
+                                    className="rounded p-0.5 text-slate-500 hover:bg-white/10 hover:text-slate-200 disabled:opacity-40"
+                                  >
+                                    <ChevronLeft className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                {colIdx < COLS.length - 1 && (
+                                  <button
+                                    disabled={movingTask === t.id}
+                                    onClick={() => moveTask(t.id, col, 1)}
+                                    title={`Move to ${COLS[colIdx + 1].replace("_", " ")}`}
+                                    className="rounded p-0.5 text-neon-cyan hover:bg-neon-cyan/10 disabled:opacity-40"
+                                  >
+                                    <ChevronRight className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                  {!tLoading && tasks?.filter((t) => t.status === col).length === 0 && (
+                    <p className="text-[11px] text-slate-600 text-center py-2">Empty</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </GlassCard>
     </div>

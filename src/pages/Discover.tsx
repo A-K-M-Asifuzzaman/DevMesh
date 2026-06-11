@@ -36,14 +36,19 @@ export default function Discover() {
   const filtered = useMemo(
     () =>
       (matches ?? [])
-        .filter((m) => avail === "all" || m.user.availability === avail)
+        .filter((m) => {
+          if (avail !== "all" && m.user.availability !== avail) return false;
+          if (mode === "Cofounders") return m.score >= 65 || m.user.trustScore >= 50;
+          if (mode === "Hackathon") return m.user.availability === "available";
+          return true; // Collaborators = all
+        })
         .slice()
         .sort(
           (a, b) =>
             blendMatchScore(b.score, b.user.trustScore) -
             blendMatchScore(a.score, a.user.trustScore),
         ),
-    [matches, avail],
+    [matches, avail, mode],
   );
 
   // Load connection statuses once matches are loaded

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
+import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
 import {
-  Send, Search, Hash, Users as UsersIcon, Paperclip,
+  Send, Search, Hash, Users as UsersIcon,
   Check, CheckCheck, Trash2, Info, Circle, Wifi, WifiOff,
-  ChevronLeft, MessageSquare, Eraser,
+  ChevronLeft, MessageSquare, Eraser, Smile,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Avatar } from "@/components/ui/Avatar";
@@ -19,7 +20,7 @@ import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, ChatRoom } from "@/types";
 
-const EMOJIS = ["👍", "🔥", "🎉", "🚀", "❤️", "😂"];
+const QUICK_EMOJIS = ["👍", "🔥", "🎉", "🚀", "❤️", "😂"];
 
 export default function Chat() {
   const location = useLocation();
@@ -38,11 +39,24 @@ export default function Chat() {
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const [clearing, setClearing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout>>();
   const deepLinked = useRef(false);
+  const emojiRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { init(); }, [init]);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
+        setShowEmoji(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Auto-select room: prefer deep-link from navigation state, else first room
   useEffect(() => {
@@ -84,11 +98,18 @@ export default function Chat() {
     clearTimeout(typingTimer.current);
     typingTimer.current = setTimeout(() => setTyping(false), 1200);
   };
+
   const submit = () => {
     if (!draft.trim()) return;
     sendMessage(draft);
     setDraft("");
     setTyping(false);
+    setShowEmoji(false);
+  };
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setDraft((prev) => prev + emojiData.emoji);
+    setShowEmoji(false);
   };
 
   const clearChat = async () => {
@@ -97,7 +118,6 @@ export default function Chat() {
     setClearing(true);
     try {
       await api.clearChat(activeRoomId);
-      // Remove my messages from local state
       useChatStore.setState((s) => ({
         messages: {
           ...s.messages,
@@ -121,8 +141,10 @@ export default function Chat() {
   };
 
   return (
-    <div className="grid h-[calc(100vh-9rem)] grid-cols-1 gap-4 md:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_280px]">
-      {/* LEFT — room list (desktop always shown, mobile shown when mobileView === "list") */}
+    // h-[calc(100vh-11rem)] on mobile/tablet accounts for the fixed bottom nav + padding
+    // lg screens have no bottom nav so use h-[calc(100vh-9rem)]
+    <div className="grid h-[calc(100vh-11rem)] lg:h-[calc(100vh-9rem)] grid-cols-1 gap-4 md:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_280px]">
+      {/* LEFT — room list */}
       <GlassCard className={cn(
         "flex-col overflow-hidden p-0",
         "md:flex",
@@ -163,7 +185,7 @@ export default function Chat() {
         )}
       </GlassCard>
 
-      {/* MIDDLE — messages (desktop always shown, mobile shown when mobileView === "chat") */}
+      {/* MIDDLE — messages */}
       <GlassCard className={cn(
         "flex-col overflow-hidden p-0",
         "md:flex",
@@ -173,7 +195,6 @@ export default function Chat() {
           <>
             <header className="flex items-center justify-between border-b border-white/5 p-4">
               <div className="flex items-center gap-3">
-                {/* Mobile back button */}
                 <button
                   className="md:hidden rounded-lg p-1.5 text-slate-400 hover:text-white hover:bg-white/5"
                   onClick={() => setMobileView("list")}
@@ -237,18 +258,52 @@ export default function Chat() {
               <div ref={endRef} />
             </div>
 
-            <div className="flex items-center gap-2 border-t border-white/5 p-3">
-              <button className="rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-neon-cyan" title="Attach">
-                <Paperclip className="h-4 w-4" />
-              </button>
-              <input
-                value={draft}
-                onChange={(e) => onChange(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit()}
-                placeholder={`Message ${active.kind === "team" ? "#" + active.name : active.name}…`}
-                className="h-10 flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-neon-cyan/50"
-              />
-              <Button onClick={submit} className="px-3"><Send className="h-4 w-4" /></Button>
+            {/* Input bar */}
+            <div className="relative border-t border-white/5 p-3">
+              {/* Emoji picker */}
+              <AnimatePresence>
+                {showEmoji && (
+                  <motion.div
+                    ref={emojiRef}
+                    initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute bottom-full left-0 right-0 z-50 pb-2 px-3"
+                  >
+                    <EmojiPicker
+                      onEmojiClick={onEmojiClick}
+                      theme={Theme.DARK}
+                      width="100%"
+                      height={360}
+                      lazyLoadEmojis
+                      searchPlaceholder="Search emoji…"
+                      skinTonesDisabled
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowEmoji((v) => !v)}
+                  className={cn(
+                    "rounded-lg p-2 transition",
+                    showEmoji ? "bg-neon-cyan/10 text-neon-cyan" : "text-slate-400 hover:bg-white/5 hover:text-neon-cyan",
+                  )}
+                  title="Emoji"
+                >
+                  <Smile className="h-4 w-4" />
+                </button>
+                <input
+                  value={draft}
+                  onChange={(e) => onChange(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submit()}
+                  placeholder={`Message ${active.kind === "team" ? "#" + active.name : active.name}…`}
+                  className="h-10 flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-neon-cyan/50"
+                />
+                <Button onClick={submit} className="px-3"><Send className="h-4 w-4" /></Button>
+              </div>
             </div>
           </>
         ) : (
@@ -322,7 +377,6 @@ function MessageRow({
 }) {
   const { toggleReaction } = useChatStore();
   const [hover, setHover] = useState(false);
-  // Compute fromMe at render time using live auth context id — never stale
   const fromMe = msg.senderId === myId;
   const grouped = prev && prev.senderId === msg.senderId;
   const seenCount = msg.seenBy.filter((id) => id !== myId).length;
@@ -376,7 +430,7 @@ function MessageRow({
                   fromMe ? "right-0" : "left-0",
                 )}
               >
-                {EMOJIS.slice(0, 4).map((e) => (
+                {QUICK_EMOJIS.slice(0, 4).map((e) => (
                   <button key={e} onClick={() => toggleReaction(msg.id, e)} className="rounded-full px-1 text-sm hover:bg-white/10">{e}</button>
                 ))}
                 {fromMe && (

@@ -59,6 +59,7 @@ export interface DevUser {
   certificates: number;
   trustScore: number;
   trustBreakdown: TrustBreakdown;
+  lookingFor: string[];
 }
 
 export interface MatchSuggestion {

@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
-  Bookmark, BookmarkCheck, MapPin, SlidersHorizontal, ArrowDownWideNarrow,
+  Bookmark, BookmarkCheck, MapPin, SlidersHorizontal,
+  ArrowDownWideNarrow, UserPlus, MessageSquare, Clock, Check,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Avatar } from "@/components/ui/Avatar";
@@ -14,16 +16,52 @@ import { api } from "@/lib/api";
 import { trustTier, TRUST_LABELS } from "@/lib/trust";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
-import type { DevUser, TrustBreakdown } from "@/types";
+import type { DevUser, TrustBreakdown, ConnectionStatus } from "@/types";
 
 const thresholds = [0, 30, 70, 90];
+
+type StatusMap = Record<string, { status: ConnectionStatus; connectionId?: string; loading: boolean }>;
 
 export default function Recruiter() {
   const { data: users, loading } = useAsync(api.users);
   const toast = useToast();
+  const navigate = useNavigate();
+
   const [minScore, setMinScore] = useState(0);
   const [sortDesc, setSortDesc] = useState(true);
-  const [shortlist, setShortlist] = useState<Set<string>>(new Set());
+  const [statusMap, setStatusMap] = useState<StatusMap>({});
+
+  // Persist shortlist in localStorage so it survives navigation
+  const [shortlist, setShortlist] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("recruiter_shortlist");
+      return new Set(saved ? JSON.parse(saved) : []);
+    } catch { return new Set(); }
+  });
+  // Keep a ref to current shortlist so toggle doesn't close over stale state
+  const shortlistRef = useRef(shortlist);
+  shortlistRef.current = shortlist;
+
+  useEffect(() => {
+    localStorage.setItem("recruiter_shortlist", JSON.stringify([...shortlist]));
+  }, [shortlist]);
+
+  // Load connection statuses once users are loaded
+  useEffect(() => {
+    if (!users?.length) return;
+    const initial: StatusMap = {};
+    users.forEach((u) => { initial[u.id] = { status: "none", loading: false }; });
+    setStatusMap(initial);
+    users.forEach(async (u) => {
+      try {
+        const res = await api.connectionStatus(u.id);
+        setStatusMap((prev) => ({
+          ...prev,
+          [u.id]: { status: res.status as ConnectionStatus, connectionId: res.connectionId, loading: false },
+        }));
+      } catch {}
+    });
+  }, [users]);
 
   const rows = useMemo(() => {
     const list = (users ?? []).filter((u) => u.trustScore >= minScore);
@@ -33,12 +71,35 @@ export default function Recruiter() {
   }, [users, minScore, sortDesc]);
 
   const toggle = (u: DevUser) => {
+    const wasListed = shortlistRef.current.has(u.id);
     setShortlist((s) => {
       const next = new Set(s);
       if (next.has(u.id)) next.delete(u.id);
-      else { next.add(u.id); toast(`${u.name} added to shortlist`); }
+      else next.add(u.id);
       return next;
     });
+    // Toast called outside the updater to avoid React StrictMode double-invoke
+    if (!wasListed) toast(`${u.name} added to shortlist`);
+  };
+
+  const handleConnect = async (u: DevUser, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const s = statusMap[u.id];
+    if (!s || s.loading) return;
+    setStatusMap((prev) => ({ ...prev, [u.id]: { ...prev[u.id], loading: true } }));
+    try {
+      if (s.status === "none") {
+        await api.sendConnectionRequest(u.id);
+        setStatusMap((prev) => ({ ...prev, [u.id]: { status: "pending_sent", loading: false } }));
+        toast(`Request sent to ${u.name}`);
+      } else if (s.status === "connected") {
+        const room = await api.openDm(u.id);
+        navigate("/chat", { state: { roomId: room.id } });
+      }
+    } catch (err: any) {
+      toast(err.message ?? "Action failed", "error");
+      setStatusMap((prev) => ({ ...prev, [u.id]: { ...prev[u.id], loading: false } }));
+    }
   };
 
   return (
@@ -92,16 +153,23 @@ export default function Recruiter() {
           {rows.map((u, i) => {
             const tier = trustTier(u.trustScore);
             const listed = shortlist.has(u.id);
+            const s = statusMap[u.id] ?? { status: "none", loading: false };
             return (
               <motion.div key={u.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                <GlassCard interactive className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                <GlassCard
+                  interactive
+                  className="flex cursor-pointer flex-col gap-4 lg:flex-row lg:items-center"
+                  onClick={() => navigate(`/profile/${u.id}`)}
+                >
                   {/* identity */}
                   <div className="flex items-center gap-3 lg:w-64">
                     <Avatar src={u.avatar} name={u.name} size={48} status={u.availability} />
                     <div className="min-w-0">
                       <p className="truncate font-medium text-white">{u.name}</p>
                       <p className="truncate text-xs text-slate-400">{u.role}</p>
-                      <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><MapPin className="h-3 w-3" />{u.location}</p>
+                      <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
+                        <MapPin className="h-3 w-3" />{u.location || "Remote"}
+                      </p>
                     </div>
                   </div>
 
@@ -127,16 +195,40 @@ export default function Recruiter() {
                   </div>
 
                   {/* actions */}
-                  <div className="flex items-center gap-2 lg:w-40 lg:justify-end">
+                  <div className="flex items-center gap-2 lg:w-48 lg:justify-end" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap gap-1">
-                      {u.skills.slice(0, 2).map((s) => <Badge key={s.name}>{s.name}</Badge>)}
+                      {u.skills.slice(0, 2).map((sk) => <Badge key={sk.name}>{sk.name}</Badge>)}
                     </div>
+
+                    {/* Connect / Message / Pending */}
+                    {s.status === "connected" ? (
+                      <Button size="sm" variant="subtle" loading={s.loading} onClick={(e) => handleConnect(u, e)} title="Message">
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                    ) : s.status === "pending_sent" ? (
+                      <Button size="sm" variant="subtle" disabled title="Request pending">
+                        <Clock className="h-4 w-4 text-slate-400" />
+                      </Button>
+                    ) : s.status === "pending_received" ? (
+                      <Button size="sm" variant="subtle" disabled title="They sent you a request — check Connections">
+                        <Check className="h-4 w-4 text-neon-lime" />
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" loading={s.loading} onClick={(e) => handleConnect(u, e)} title="Connect">
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    )}
+
+                    {/* Shortlist */}
                     <Button
                       size="sm"
                       variant={listed ? "subtle" : "outline"}
                       onClick={() => toggle(u)}
+                      title={listed ? "Remove from shortlist" : "Add to shortlist"}
                     >
-                      {listed ? <BookmarkCheck className="h-4 w-4 text-neon-lime" /> : <Bookmark className="h-4 w-4" />}
+                      {listed
+                        ? <BookmarkCheck className="h-4 w-4 text-neon-lime" />
+                        : <Bookmark className="h-4 w-4" />}
                     </Button>
                   </div>
                 </GlassCard>

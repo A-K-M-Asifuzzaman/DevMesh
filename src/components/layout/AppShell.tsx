@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Sparkles, Users, MessageSquare, Rocket,
   CreditCard, Search, Bell, LogOut, Briefcase, Menu, X,
-  UserPlus, Check, MessageCircle,
+  UserPlus, Check, MessageCircle, MapPin,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Avatar } from "@/components/ui/Avatar";
@@ -14,7 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { getSocket } from "@/lib/socket";
-import type { AppNotification } from "@/types";
+import type { AppNotification, DevUser } from "@/types";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -35,6 +35,39 @@ const mobileNav = [
   { to: "/teams", label: "Teams", icon: Users },
 ];
 
+// Defined OUTSIDE AppShell so React never treats it as a new component type on re-render
+function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <nav className="mt-6 flex flex-1 flex-col gap-1">
+      {nav.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            cn(
+              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
+              isActive
+                ? "bg-white/[0.06] text-white shadow-glow"
+                : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100",
+            )
+          }
+        >
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <span className="absolute left-0 h-6 w-0.5 rounded-full bg-neon-grad" />
+              )}
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </>
+          )}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
 function NotificationIcon(type: string) {
   switch (type) {
     case "connection_request": return <UserPlus className="h-4 w-4 text-neon-cyan" />;
@@ -53,15 +86,53 @@ export function AppShell() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<DevUser[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  // Load notifications
+  const location = useLocation();
+  const closeDrawer = () => setDrawerOpen(false);
+
+  // Close mobile drawer on every route change — most reliable approach
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname]);
+
+  // Debounced developer search
+  const handleSearchChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    clearTimeout(searchTimer.current);
+    if (!q.trim()) { setSearchResults([]); setSearchOpen(false); return; }
+    setSearchLoading(true);
+    setSearchOpen(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const users = await api.searchUsers(q);
+        setSearchResults(users);
+      } catch { setSearchResults([]); }
+      finally { setSearchLoading(false); }
+    }, 300);
+  }, []);
+
+  // Close search on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   useEffect(() => {
     api.notifications().then(setNotifications).catch(() => {});
     api.notificationUnreadCount().then(setUnread).catch(() => {});
   }, []);
 
-  // Real-time notifications via socket
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
@@ -84,7 +155,6 @@ export function AppShell() {
     return () => { socket.off("notification:new", handler); };
   }, []);
 
-  // Close notif dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -108,11 +178,8 @@ export function AppShell() {
       setUnread((u) => Math.max(0, u - 1));
     }
     setNotifOpen(false);
-    if (n.type === "connection_request" || n.type === "connection_accepted") {
-      navigate("/discover");
-    } else if (n.type === "message") {
-      navigate("/chat");
-    }
+    if (n.type === "connection_request" || n.type === "connection_accepted") navigate("/discover");
+    else if (n.type === "message") navigate("/chat");
   };
 
   const handleAcceptConnection = async (n: AppNotification) => {
@@ -131,39 +198,13 @@ export function AppShell() {
 
   const handleLogout = () => { logout(); navigate("/"); };
 
-  const SidebarNav = ({ onClick }: { onClick?: () => void }) => (
-    <nav className="mt-6 flex flex-1 flex-col gap-1">
-      {nav.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          onClick={onClick}
-          className={({ isActive }) =>
-            cn(
-              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
-              isActive ? "bg-white/[0.06] text-white shadow-glow" : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100",
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {isActive && (
-                <motion.span layoutId="nav-active" className="absolute left-0 h-6 w-0.5 rounded-full bg-neon-grad" />
-              )}
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </>
-          )}
-        </NavLink>
-      ))}
-    </nav>
-  );
-
   return (
     <div className="flex min-h-screen">
       {/* Desktop Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-white/5 bg-ink-950/40 p-4 backdrop-blur-xl lg:flex">
-        <div className="px-2 py-2"><Logo /></div>
+        <div className="px-2 py-2">
+          <NavLink to="/dashboard" className="block"><Logo /></NavLink>
+        </div>
         <SidebarNav />
         <div className="glass mt-4 flex items-center gap-3 p-3">
           <button onClick={() => navigate("/profile")}>
@@ -179,36 +220,53 @@ export function AppShell() {
         </div>
       </aside>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer overlay */}
       <AnimatePresence>
         {drawerOpen && (
-          <>
-            <motion.div key="overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => setDrawerOpen(false)} />
-            <motion.aside
-              key="drawer"
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r border-white/5 bg-ink-950 p-4 lg:hidden"
-            >
-              <div className="flex items-center justify-between px-2 py-2">
-                <Logo />
-                <button onClick={() => setDrawerOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:text-white">
-                  <X className="h-5 w-5" />
-                </button>
+          <motion.div
+            key="overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            onClick={closeDrawer}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Mobile drawer panel */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <motion.aside
+            key="drawer"
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r border-white/5 bg-ink-950 p-4 lg:hidden"
+          >
+            <div className="flex items-center justify-between px-2 py-2">
+              <NavLink to="/dashboard" className="block" onClick={closeDrawer}><Logo /></NavLink>
+              <button
+                type="button"
+                onClick={closeDrawer}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-white active:bg-white/10"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <SidebarNav onNavigate={closeDrawer} />
+            <div className="glass mt-4 flex items-center gap-3 p-3">
+              <Avatar src={user?.avatar} name={user?.name ?? "You"} status="open" size={36} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">{user?.name}</p>
+                <p className="truncate text-xs text-slate-500">@{user?.handle}</p>
               </div>
-              <SidebarNav onClick={() => setDrawerOpen(false)} />
-              <div className="glass mt-4 flex items-center gap-3 p-3">
-                <Avatar src={user?.avatar} name={user?.name ?? "You"} status="open" size={36} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">{user?.name}</p>
-                  <p className="truncate text-xs text-slate-500">@{user?.handle}</p>
-                </div>
-                <button onClick={handleLogout} className="text-slate-500 transition hover:text-neon-magenta"><LogOut className="h-4 w-4" /></button>
-              </div>
-            </motion.aside>
-          </>
+              <button onClick={handleLogout} className="text-slate-500 transition hover:text-neon-magenta">
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.aside>
         )}
       </AnimatePresence>
 
@@ -216,19 +274,71 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar */}
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/5 bg-ink-950/50 px-4 py-3 backdrop-blur-xl sm:gap-4 sm:px-5">
-          <button className="shrink-0 rounded-lg border border-white/10 p-2 text-slate-300 transition hover:text-white lg:hidden" onClick={() => setDrawerOpen(true)}>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-white/10 p-2 text-slate-300 transition hover:text-white lg:hidden"
+            onClick={() => setDrawerOpen(true)}
+          >
             <Menu className="h-4 w-4" />
           </button>
 
-          <div className="flex flex-1 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-400 max-w-md">
-            <Search className="h-4 w-4 shrink-0" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search developers, skills…"
-              className="w-full bg-transparent outline-none placeholder:text-slate-500"
-            />
-            <kbd className="hidden rounded border border-white/10 px-1.5 text-[10px] text-slate-500 sm:block">⌘K</kbd>
+          {/* Search */}
+          <div className="relative flex-1 max-w-md" ref={searchRef}>
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-400 focus-within:border-neon-cyan/40">
+              <Search className="h-4 w-4 shrink-0" />
+              <input
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={() => searchQuery.trim() && setSearchOpen(true)}
+                placeholder="Search developers, skills…"
+                className="w-full bg-transparent outline-none placeholder:text-slate-500 text-white"
+              />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(""); setSearchResults([]); setSearchOpen(false); }} className="text-slate-500 hover:text-white">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <AnimatePresence>
+              {searchOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute left-0 right-0 top-11 z-50 overflow-hidden rounded-2xl border border-white/10 bg-ink-950/95 shadow-2xl backdrop-blur-xl"
+                >
+                  {searchLoading ? (
+                    <div className="flex items-center justify-center py-8 text-sm text-slate-500">Searching…</div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="flex items-center justify-center py-8 text-sm text-slate-500">No developers found</div>
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto py-2">
+                      {searchResults.map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={() => { navigate(`/profile/${u.id}`); setSearchOpen(false); setSearchQuery(""); }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 transition hover:bg-white/[0.05]"
+                        >
+                          <Avatar src={u.avatar} name={u.name} size={36} status={u.availability} />
+                          <div className="min-w-0 flex-1 text-left">
+                            <p className="truncate text-sm font-medium text-white">{u.name}</p>
+                            <p className="flex items-center gap-1 truncate text-xs text-slate-400">
+                              {u.role}
+                              {u.location && <><span className="text-slate-600">·</span><MapPin className="h-3 w-3" />{u.location}</>}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-slate-400">
+                            {u.trustScore}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <Badge tone="cyan" className="hidden sm:inline-flex shrink-0">{user?.tier?.toUpperCase()} plan</Badge>
@@ -294,12 +404,22 @@ export function AppShell() {
                             </p>
                             {n.type === "connection_request" && n.payload?.connectionId && (
                               <div className="mt-2 flex gap-2" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => handleAcceptConnection(n)} className="rounded-lg bg-neon-cyan/20 px-2.5 py-1 text-xs text-neon-cyan hover:bg-neon-cyan/30 transition">Accept</button>
-                                <button onClick={async () => {
-                                  await api.rejectConnection(n.payload!.connectionId).catch(() => {});
-                                  setNotifications((p) => p.filter((x) => x.id !== n.id));
-                                  setUnread((u) => Math.max(0, u - 1));
-                                }} className="rounded-lg bg-white/10 px-2.5 py-1 text-xs text-slate-400 hover:text-white transition">Decline</button>
+                                <button
+                                  onClick={() => handleAcceptConnection(n)}
+                                  className="rounded-lg bg-neon-cyan/20 px-2.5 py-1 text-xs text-neon-cyan hover:bg-neon-cyan/30 transition"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    await api.rejectConnection(n.payload!.connectionId).catch(() => {});
+                                    setNotifications((p) => p.filter((x) => x.id !== n.id));
+                                    setUnread((u) => Math.max(0, u - 1));
+                                  }}
+                                  className="rounded-lg bg-white/10 px-2.5 py-1 text-xs text-slate-400 hover:text-white transition"
+                                >
+                                  Decline
+                                </button>
                               </div>
                             )}
                           </div>

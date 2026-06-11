@@ -22,6 +22,7 @@ export async function updateProfile(req: AuthedRequest, res: Response) {
   const allowed = [
     "name", "bio", "role", "location", "availability", "skills", "stack",
     "github", "website", "twitter", "githubStats", "certificatesCount", "projectsCount",
+    "lookingFor",
   ];
   const patch: Record<string, unknown> = {};
   for (const k of allowed) if (k in req.body) patch[k] = req.body[k];
@@ -62,9 +63,24 @@ export async function recruiterList(req: AuthedRequest, res: Response) {
 }
 
 export async function listUsers(req: AuthedRequest, res: Response) {
-  const users = await User.find({ _id: { $ne: req.userId } })
+  const q = req.query.q ? String(req.query.q).trim() : "";
+  const filter: Record<string, unknown> = { _id: { $ne: req.userId } };
+
+  if (q) {
+    const rx = new RegExp(q, "i");
+    filter.$or = [
+      { name: rx },
+      { handle: rx },
+      { role: rx },
+      { "skills.name": rx },
+      { stack: rx },
+      { location: rx },
+    ];
+  }
+
+  const users = await User.find(filter)
     .select("name handle avatar role location skills trustScore availability stack")
-    .limit(100)
+    .limit(q ? 10 : 100)
     .lean();
   res.json({ users });
 }

@@ -57,6 +57,7 @@ export function normalizeUser(u: Record<string, any>): DevUser {
     trustBreakdown: u.trustBreakdown ?? {
       profile: 0, github: 0, certificates: 0, projects: 0, activity: 0,
     },
+    lookingFor: u.lookingFor ?? [],
   };
 }
 
@@ -235,6 +236,11 @@ export const api = {
   // Users
   users: async (): Promise<DevUser[]> => {
     const { users } = await apiFetch<{ users: any[] }>("/users");
+    return users.map(normalizeUser);
+  },
+
+  searchUsers: async (q: string): Promise<DevUser[]> => {
+    const { users } = await apiFetch<{ users: any[] }>(`/users?q=${encodeURIComponent(q)}`);
     return users.map(normalizeUser);
   },
 

@@ -4,12 +4,14 @@ An AI-powered collaboration network for developers — real-time team chat, AI t
 
 ## Features
 
-- **Real-time chat** — DM and team rooms with typing indicators, read receipts, emoji reactions, message edit/delete, and per-conversation clear
-- **AI Matching** — skill-based teammate and cofounder matching powered by OpenAI (heuristic fallback when no key is set)
-- **Teams** — create teams, invite members, jump straight to team group chat
+- **Real-time chat** — DM and team rooms with typing indicators, read receipts, emoji picker, emoji reactions, message edit/delete, and per-conversation clear
+- **AI Matching** — skill-based teammate and cofounder matching with Cofounders / Hackathon / All filter modes; powered by OpenAI (heuristic fallback when no key is set)
+- **Developer search** — live topbar search across name, handle, role, skills, stack, and location with instant dropdown results
+- **Teams** — create teams, invite members, jump straight to team group chat; Kanban board with task creation and column movement (Todo → In Progress → Review → Done)
 - **Connections** — send/accept/decline connection requests; open DMs from the connections page
 - **Developer Trust Score** — 0–100 composite score from profile, GitHub, certs, projects, and activity; surfaced on profiles and the Recruiter dashboard
-- **Recruiter dashboard** — filter, sort, and shortlist candidates by trust score
+- **Recruiter dashboard** — filter, sort, shortlist, and connect with candidates; shortlist persists across sessions and appears on the Dashboard
+- **Profile — "Looking for"** — developers can mark themselves as seeking a Collaborator, Cofounder, or Hackathon teammate; shown as badges on their profile
 - **Startups board** — post and browse startup ideas
 - **Onboarding** — guided multi-step profile setup (skills, projects, certificates auto-saved)
 

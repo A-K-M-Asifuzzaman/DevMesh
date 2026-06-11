@@ -44,7 +44,7 @@ export const me: DevUser = {
   rep: 982,
   certificates: 6,
   userType: "developer" as const, onboardingComplete: true, trustScore: 88,
-  trustBreakdown: tb(92, 86, 80, 95, 78),
+  trustBreakdown: tb(92, 86, 80, 95, 78), lookingFor: ["Cofounder"],
 };
 
 export const users: DevUser[] = [
@@ -59,7 +59,7 @@ export const users: DevUser[] = [
     ],
     stack: ["Figma", "React", "Tailwind", "Framer Motion"],
     github: "kofim", followers: 9100, projects: 41, rep: 1240, certificates: 9,
-    userType: "developer" as const, onboardingComplete: true, trustScore: 93, trustBreakdown: tb(98, 84, 95, 96, 88),
+    userType: "developer" as const, onboardingComplete: true, trustScore: 93, trustBreakdown: tb(98, 84, 95, 96, 88), lookingFor: ["Cofounder", "Hackathon"],
   },
   {
     id: "u2", name: "Lena Ortiz", handle: "lena_ml", avatar: av(2),
@@ -72,7 +72,7 @@ export const users: DevUser[] = [
     ],
     stack: ["FastAPI", "LangChain", "Pinecone", "OpenAI"],
     github: "lenao", followers: 3300, projects: 17, rep: 870, certificates: 7,
-    userType: "developer" as const, onboardingComplete: true, trustScore: 84, trustBreakdown: tb(80, 90, 88, 82, 76),
+    userType: "developer" as const, onboardingComplete: true, trustScore: 84, trustBreakdown: tb(80, 90, 88, 82, 76), lookingFor: ["Collaborator"],
   },
   {
     id: "u3", name: "Devon Park", handle: "devops_dev", avatar: av(3),
@@ -85,7 +85,7 @@ export const users: DevUser[] = [
     ],
     stack: ["K8s", "Terraform", "Go", "AWS", "Grafana"],
     github: "devonp", followers: 2100, projects: 12, rep: 640, certificates: 3,
-    userType: "developer" as const, onboardingComplete: true, trustScore: 67, trustBreakdown: tb(58, 82, 45, 72, 70),
+    userType: "developer" as const, onboardingComplete: true, trustScore: 67, trustBreakdown: tb(58, 82, 45, 72, 70), lookingFor: [],
   },
   {
     id: "u4", name: "Sara Haddad", handle: "sarah_builds", avatar: av(4),
@@ -98,7 +98,7 @@ export const users: DevUser[] = [
     ],
     stack: ["Notion", "HubSpot", "Mixpanel"],
     followers: 15400, projects: 8, rep: 1510, certificates: 4,
-    userType: "developer" as const, onboardingComplete: true, trustScore: 74, trustBreakdown: tb(88, 30, 60, 78, 95),
+    userType: "developer" as const, onboardingComplete: true, trustScore: 74, trustBreakdown: tb(88, 30, 60, 78, 95), lookingFor: ["Cofounder"],
   },
   {
     id: "u5", name: "Tomas Veir", handle: "tveir", avatar: av(5),
@@ -111,7 +111,7 @@ export const users: DevUser[] = [
     ],
     stack: ["Node", "Postgres", "Kafka", "Redis"],
     github: "tveir", followers: 1800, projects: 19, rep: 720, certificates: 2,
-    userType: "developer" as const, onboardingComplete: true, trustScore: 71, trustBreakdown: tb(70, 88, 35, 80, 68),
+    userType: "developer" as const, onboardingComplete: true, trustScore: 71, trustBreakdown: tb(70, 88, 35, 80, 68), lookingFor: ["Hackathon"],
   },
   {
     id: "u6", name: "Mia Novak", handle: "mianovak", avatar: av(6),
@@ -121,7 +121,7 @@ export const users: DevUser[] = [
     skills: [{ name: "React", level: 68 }, { name: "CSS", level: 74 }],
     stack: ["React", "Tailwind"],
     followers: 210, projects: 2, rep: 90, certificates: 0,
-    userType: "developer" as const, onboardingComplete: true, trustScore: 28, trustBreakdown: tb(35, 20, 0, 30, 40),
+    userType: "developer" as const, onboardingComplete: true, trustScore: 28, trustBreakdown: tb(35, 20, 0, 30, 40), lookingFor: [],
   },
 ];
 

@@ -39,6 +39,7 @@ const UserSchema = new Schema(
     bio: String,
     location: String,
     availability: { type: String, enum: ["available", "open", "busy"], default: "open" },
+    lookingFor: [{ type: String, enum: ["Collaborator", "Cofounder", "Hackathon"] }],
     tier: { type: String, enum: ["free", "pro", "startup"], default: "free" },
 
     // Onboarding

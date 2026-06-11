@@ -20,7 +20,19 @@ import notificationRoutes from "./routes/notification.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 
 const app = express();
-app.use(cors({ origin: env.clientOrigin, credentials: true }));
+const allowedOrigins = [
+  env.clientOrigin,
+  // Accept any localhost port during local development
+  ...(/^http:\/\/localhost/.test(env.clientOrigin) ? [/^http:\/\/localhost:\d+$/] : []),
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // server-to-server / curl
+    const ok = allowedOrigins.some((o) => typeof o === "string" ? o === origin : o.test(origin));
+    ok ? cb(null, true) : cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+}));
 
 app.post("/api/billing/webhook", express.raw({ type: "application/json" }), webhook);
 app.use(express.json({ limit: "10mb" }));

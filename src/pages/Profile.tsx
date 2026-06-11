@@ -39,6 +39,7 @@ export default function Profile() {
   const [location, setLocation] = useState("");
   const [role, setRole] = useState("");
   const [availability, setAvailability] = useState<"available" | "open" | "busy">("open");
+  const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [stack, setStack] = useState<string[]>([]);
   const [github, setGithub] = useState("");
   const [website, setWebsite] = useState("");
@@ -65,6 +66,7 @@ export default function Profile() {
       setLocation(me.location ?? "");
       setRole(me.role ?? "");
       setAvailability((me.availability as any) ?? "open");
+      setLookingFor(me.lookingFor ?? []);
       setStack(me.stack ?? []);
       setGithub(me.github ?? "");
       setWebsite(me.website ?? "");
@@ -86,7 +88,7 @@ export default function Profile() {
   const saveProfile = async () => {
     setSaving(true);
     try {
-      await api.updateProfile({ name, bio, location, role, availability, stack, github, website, twitter, skills });
+      await api.updateProfile({ name, bio, location, role, availability, lookingFor, stack, github, website, twitter, skills });
       await refreshUser();
       toast("Profile updated ✓");
       setEditing(false);
@@ -270,6 +272,21 @@ export default function Profile() {
                   </div>
                 </div>
                 <div>
+                  <label className="mb-1.5 block text-xs text-slate-400">Looking for</label>
+                  <div className="flex gap-2">
+                    {(["Collaborator", "Cofounder", "Hackathon"] as const).map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setLookingFor((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
+                        className={`flex-1 rounded-xl border py-2 text-xs font-medium transition ${lookingFor.includes(opt) ? "border-neon-cyan bg-neon-cyan/10 text-neon-cyan" : "border-white/10 text-slate-500 hover:text-white"}`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
                   <label className="mb-1.5 block text-xs text-slate-400">Tech stack</label>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {TECH_STACK.map((t) => (
@@ -302,6 +319,16 @@ export default function Profile() {
             ) : (
               <>
                 <p className="mt-2 text-sm leading-relaxed text-slate-300">{me.bio || <span className="text-slate-600 italic">No bio yet — click Edit to add one.</span>}</p>
+                {me.lookingFor && me.lookingFor.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-1.5 text-xs text-slate-500">Looking for</p>
+                    <div className="flex flex-wrap gap-2">
+                      {me.lookingFor.map((lf) => (
+                        <span key={lf} className="rounded-xl border border-neon-cyan/30 bg-neon-cyan/10 px-3 py-1 text-xs font-medium text-neon-cyan">{lf}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {me.stack.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{me.stack.map((s) => <Badge key={s} tone="cyan">{s}</Badge>)}</div>}
                 {(me.github || me.website || me.twitter) && (
                   <div className="mt-4 flex flex-wrap gap-3 text-sm">
