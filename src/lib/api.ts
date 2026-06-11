@@ -315,6 +315,30 @@ export const api = {
     return apiFetch(`/ideas/${id}/upvote`, { method: "POST" });
   },
 
+  applyToIdea: async (ideaId: string, data: { message: string; role: string }): Promise<{ id: string; status: string }> => {
+    const { application } = await apiFetch<{ application: any }>(`/ideas/${ideaId}/apply`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return application;
+  },
+
+  ideaApplications: async (ideaId: string): Promise<import("@/types").IdeaApplication[]> => {
+    const { applications } = await apiFetch<{ applications: any[] }>(`/ideas/${ideaId}/applications`);
+    return applications.map((a) => ({
+      id: String(a._id ?? a.id ?? ""),
+      applicant: normalizeUser(a.applicant ?? {}),
+      role: a.role ?? "",
+      message: a.message ?? "",
+      status: a.status ?? "pending",
+      createdAt: a.createdAt ?? "",
+    }));
+  },
+
+  updateApplication: async (id: string, status: "accepted" | "rejected"): Promise<void> => {
+    await apiFetch(`/applications/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+  },
+
   // Tasks
   tasks: async (): Promise<Task[]> => {
     const { tasks } = await apiFetch<{ tasks: any[] }>("/tasks");

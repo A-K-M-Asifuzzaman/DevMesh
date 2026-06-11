@@ -73,6 +73,7 @@ function NotificationIcon(type: string) {
     case "connection_request": return <UserPlus className="h-4 w-4 text-neon-cyan" />;
     case "connection_accepted": return <Check className="h-4 w-4 text-neon-lime" />;
     case "message": return <MessageCircle className="h-4 w-4 text-neon-magenta" />;
+    case "application": return <Rocket className="h-4 w-4 text-neon-magenta" />;
     default: return <Bell className="h-4 w-4 text-slate-400" />;
   }
 }
@@ -180,6 +181,7 @@ export function AppShell() {
     setNotifOpen(false);
     if (n.type === "connection_request" || n.type === "connection_accepted") navigate("/discover");
     else if (n.type === "message") navigate("/chat");
+    else if (n.type === "application") navigate("/startups");
   };
 
   const handleAcceptConnection = async (n: AppNotification) => {

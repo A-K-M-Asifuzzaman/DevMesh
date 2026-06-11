@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowBigUp, MessageCircle, Plus, Sparkles, Rocket, X, Tag } from "lucide-react";
+import {
+  ArrowBigUp, MessageCircle, Plus, Sparkles, Rocket, X, Tag,
+  Users, Check, XCircle, ChevronDown,
+} from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
@@ -11,7 +14,8 @@ import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { fmt } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import type { StartupIdea } from "@/types";
+import { useAuth } from "@/context/AuthContext";
+import type { StartupIdea, IdeaApplication } from "@/types";
 
 const ROLES = ["Frontend Dev","Backend Dev","Full-Stack Dev","Mobile Dev","UI/UX Designer","Data Scientist","DevOps","Product Manager","Marketer","Blockchain Dev"];
 
@@ -19,11 +23,17 @@ export default function Startups() {
   const { data: ideas, loading, setData: setIdeas } = useAsync(api.ideas);
   const toast = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
   const [voted, setVoted] = useState<Record<string, boolean>>({});
+  const [applied, setApplied] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
   const [showPost, setShowPost] = useState(false);
   const [showApply, setShowApply] = useState<StartupIdea | null>(null);
+  const [showApplications, setShowApplications] = useState<{ idea: StartupIdea; list: IdeaApplication[] } | null>(null);
+  const [loadingApps, setLoadingApps] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [updatingApp, setUpdatingApp] = useState<string | null>(null);
 
   // Post idea form
   const [title, setTitle] = useState("");
@@ -34,6 +44,7 @@ export default function Startups() {
 
   // Apply form
   const [applyMessage, setApplyMessage] = useState("");
+  const [applyRole, setApplyRole] = useState("");
 
   const vote = async (idea: StartupIdea) => {
     const wasVoted = voted[idea.id] ?? false;
@@ -41,9 +52,7 @@ export default function Startups() {
     try {
       const res = await api.upvoteIdea(idea.id);
       setIdeas?.((prev) =>
-        (prev ?? []).map((x) =>
-          x.id === idea.id ? { ...x, upvotes: res.upvotes } : x,
-        ),
+        (prev ?? []).map((x) => x.id === idea.id ? { ...x, upvotes: res.upvotes } : x),
       );
     } catch {
       setVoted((v) => ({ ...v, [idea.id]: wasVoted }));
@@ -70,16 +79,46 @@ export default function Startups() {
     if (!showApply) return;
     setSubmitting(true);
     try {
-      // Direct DM to the idea author
-      await api.openDm(showApply.author.id);
+      await api.applyToIdea(showApply.id, { message: applyMessage, role: applyRole });
+      setApplied((prev) => new Set([...prev, showApply.id]));
       setShowApply(null);
       setApplyMessage("");
-      toast("Opened a chat with the founder!");
-      navigate("/chat");
+      setApplyRole("");
+      toast("Application sent! The founder will review it.");
     } catch (err: any) {
       toast(err.message ?? "Failed to apply", "error");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openApplications = async (idea: StartupIdea) => {
+    setLoadingApps(idea.id);
+    try {
+      const list = await api.ideaApplications(idea.id);
+      setShowApplications({ idea, list });
+    } catch (err: any) {
+      toast(err.message ?? "Failed to load applications", "error");
+    } finally {
+      setLoadingApps(null);
+    }
+  };
+
+  const handleUpdateApplication = async (appId: string, status: "accepted" | "rejected") => {
+    if (!showApplications) return;
+    setUpdatingApp(appId);
+    try {
+      await api.updateApplication(appId, status);
+      setShowApplications((prev) =>
+        prev
+          ? { ...prev, list: prev.list.map((a) => a.id === appId ? { ...a, status } : a) }
+          : prev,
+      );
+      toast(status === "accepted" ? "Application accepted!" : "Application declined.");
+    } catch (err: any) {
+      toast(err.message ?? "Failed to update", "error");
+    } finally {
+      setUpdatingApp(null);
     }
   };
 
@@ -235,7 +274,18 @@ export default function Startups() {
                   <p className="mt-1 text-xs text-slate-400">by {showApply.author.name}</p>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm text-slate-400">Your message to the founder</label>
+                  <label className="mb-1.5 block text-sm text-slate-400">Role you're applying for</label>
+                  <select
+                    value={applyRole}
+                    onChange={(e) => setApplyRole(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-neon-cyan/50"
+                  >
+                    <option value="">Select a role…</option>
+                    {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm text-slate-400">Message to the founder</label>
                   <textarea
                     value={applyMessage}
                     onChange={(e) => setApplyMessage(e.target.value)}
@@ -244,13 +294,115 @@ export default function Startups() {
                     className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-neon-cyan/50"
                   />
                 </div>
-                <p className="text-xs text-slate-500">Applying will open a direct chat with the founder.</p>
                 <div className="flex gap-2">
-                  <Button className="flex-1" loading={submitting} onClick={apply}>
-                    Apply &amp; message founder
+                  <Button className="flex-1" loading={submitting} onClick={apply} disabled={!applyMessage.trim()}>
+                    Send application
                   </Button>
                   <Button variant="ghost" onClick={() => setShowApply(null)}>Cancel</Button>
                 </div>
+              </GlassCard>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Applications Modal (for idea author) */}
+      <AnimatePresence>
+        {showApplications && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowApplications(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg max-h-[85vh] flex flex-col"
+            >
+              <GlassCard className="flex flex-col gap-4 overflow-hidden">
+                <div className="flex items-center justify-between shrink-0">
+                  <div>
+                    <h2 className="font-display text-xl font-bold text-white">Applications</h2>
+                    <p className="text-xs text-slate-400">{showApplications.idea.title}</p>
+                  </div>
+                  <button onClick={() => setShowApplications(null)} className="text-slate-400 hover:text-white"><X className="h-5 w-5" /></button>
+                </div>
+
+                {showApplications.list.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <Users className="mx-auto h-8 w-8 text-slate-600 mb-2" />
+                    <p className="text-sm text-slate-500">No applications yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-y-auto space-y-3 pr-1">
+                    {showApplications.list.map((app) => (
+                      <div key={app.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <button onClick={() => { navigate(`/profile/${app.applicant.id}`); setShowApplications(null); }}>
+                            <Avatar src={app.applicant.avatar} name={app.applicant.name} status={app.applicant.availability} size={40} />
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                onClick={() => { navigate(`/profile/${app.applicant.id}`); setShowApplications(null); }}
+                                className="font-medium text-white hover:text-neon-cyan transition"
+                              >
+                                {app.applicant.name}
+                              </button>
+                              <span className="text-xs text-slate-500">{app.applicant.role}</span>
+                              {app.role && <Badge tone="magenta">{app.role}</Badge>}
+                            </div>
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                                app.status === "accepted" ? "bg-neon-lime/10 text-neon-lime" :
+                                app.status === "rejected" ? "bg-neon-magenta/10 text-neon-magenta" :
+                                "bg-white/10 text-slate-400"
+                              }`}>
+                                {app.status === "accepted" && <Check className="h-3 w-3" />}
+                                {app.status === "rejected" && <XCircle className="h-3 w-3" />}
+                                {app.status}
+                              </span>
+                              <span className="text-[11px] text-slate-600">
+                                {new Date(app.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {app.message && (
+                          <p className="text-sm text-slate-300 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-white/5">
+                            {app.message}
+                          </p>
+                        )}
+
+                        {app.status === "pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              loading={updatingApp === app.id}
+                              onClick={() => handleUpdateApplication(app.id, "accepted")}
+                              className="flex-1"
+                            >
+                              <Check className="h-3.5 w-3.5" /> Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              loading={updatingApp === app.id}
+                              onClick={() => handleUpdateApplication(app.id, "rejected")}
+                              className="flex-1"
+                            >
+                              <XCircle className="h-3.5 w-3.5" /> Decline
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </GlassCard>
             </motion.div>
           </motion.div>
@@ -272,6 +424,9 @@ export default function Startups() {
         <div className="space-y-4">
           {ideas.map((idea, i) => {
             const isVoted = voted[idea.id] ?? false;
+            const isOwner = user?.id === idea.author.id;
+            const hasApplied = applied.has(idea.id);
+
             return (
               <motion.div key={idea.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
                 <GlassCard interactive className="flex gap-3 sm:gap-4">
@@ -306,7 +461,25 @@ export default function Startups() {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {idea.lookingFor.map((r) => <Badge key={r} tone="magenta">{r}</Badge>)}
-                        <Button size="sm" variant="outline" onClick={() => setShowApply(idea)}>Apply</Button>
+
+                        {isOwner ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            loading={loadingApps === idea.id}
+                            onClick={() => openApplications(idea)}
+                          >
+                            <Users className="h-3.5 w-3.5" />
+                            Applications
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        ) : hasApplied ? (
+                          <span className="flex items-center gap-1 rounded-xl border border-neon-lime/30 bg-neon-lime/10 px-3 py-1.5 text-xs font-medium text-neon-lime">
+                            <Check className="h-3.5 w-3.5" /> Applied
+                          </span>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => setShowApply(idea)}>Apply</Button>
+                        )}
                       </div>
                     </div>
                   </div>

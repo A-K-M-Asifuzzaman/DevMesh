@@ -82,6 +82,15 @@ export interface Team {
   ownerId?: string;
 }
 
+export interface IdeaApplication {
+  id: string;
+  applicant: DevUser;
+  role: string;
+  message: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+}
+
 export interface StartupIdea {
   id: string;
   title: string;
