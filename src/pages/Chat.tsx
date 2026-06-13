@@ -35,7 +35,7 @@ export default function Chat() {
 
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
-  const [showInfo, setShowInfo] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const [clearing, setClearing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -143,7 +143,7 @@ export default function Chat() {
   return (
     // h-[calc(100vh-11rem)] on mobile/tablet accounts for the fixed bottom nav + padding
     // lg screens have no bottom nav so use h-[calc(100vh-9rem)]
-    <div className="grid h-[calc(100vh-11rem)] lg:h-[calc(100vh-9rem)] grid-cols-1 gap-4 md:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_280px]">
+    <div className="relative overflow-hidden grid h-[calc(100vh-11rem)] lg:h-[calc(100vh-9rem)] grid-cols-1 gap-4 md:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_280px]">
       {/* LEFT — room list */}
       <GlassCard className={cn(
         "flex-col overflow-hidden p-0",
@@ -314,15 +314,46 @@ export default function Chat() {
         )}
       </GlassCard>
 
-      {/* RIGHT — info panel */}
-      {showInfo && active && (
-        <GlassCard className="hidden flex-col overflow-y-auto xl:flex">
-          {active.kind === "dm" ? (
-            <DmInfo room={active} />
-          ) : (
-            <TeamInfo room={active} />
-          )}
-        </GlassCard>
+      {/* RIGHT — info panel: always-visible column on xl, slide-in overlay on smaller screens */}
+      {active && (
+        <>
+          {/* Mobile/tablet slide-in overlay */}
+          <AnimatePresence>
+            {showInfo && (
+              <>
+                <motion.div
+                  key="info-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 z-10 bg-black/50 xl:hidden"
+                  onClick={() => setShowInfo(false)}
+                />
+                <motion.div
+                  key="info-panel"
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  className="absolute inset-y-0 right-0 z-20 flex w-72 flex-col overflow-y-auto rounded-2xl xl:hidden"
+                  style={{
+                    background: "rgba(8,8,8,0.97)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    backdropFilter: "blur(24px)",
+                  }}
+                >
+                  {active.kind === "dm" ? <DmInfo room={active} /> : <TeamInfo room={active} />}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* Desktop column — always visible on xl */}
+          <GlassCard className="hidden flex-col overflow-y-auto xl:flex">
+            {active.kind === "dm" ? <DmInfo room={active} /> : <TeamInfo room={active} />}
+          </GlassCard>
+        </>
       )}
     </div>
   );
