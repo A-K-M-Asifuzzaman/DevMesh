@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sun, Moon, Menu, X } from "lucide-react";
@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { useTheme } from "@/context/ThemeContext";
 
 const links = [
-  { href: "#features", label: "Features" },
+  { href: "#features",    label: "Features" },
   { href: "#how-it-works", label: "How it works" },
-  { href: "#matching", label: "AI Matching" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "#matching",    label: "AI Matching" },
+  { href: "#pricing",     label: "Pricing" },
 ];
 
 function ThemeToggle() {
@@ -19,9 +19,19 @@ function ThemeToggle() {
     <button
       onClick={toggleTheme}
       aria-label="Toggle theme"
-      className="grid h-8 w-8 place-items-center rounded-lg text-white/30 transition-colors hover:text-white/70"
+      className="grid h-8 w-8 place-items-center rounded-lg text-white/40 transition-colors hover:text-white/80"
     >
-      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={theme}
+          initial={{ rotate: -90, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          exit={{ rotate: 90, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </motion.span>
+      </AnimatePresence>
     </button>
   );
 }
@@ -29,6 +39,32 @@ function ThemeToggle() {
 export function MarketingNav() {
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState("");
+
+  /* Scroll detection for glass intensification */
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  /* Active section detection */
+  useEffect(() => {
+    const sections = links.map((l) => l.href.slice(1));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.find((e) => e.isIntersecting);
+        if (visible) setActiveSection(visible.target.id);
+      },
+      { threshold: 0.4 },
+    );
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
 
   const scrollTo = (href: string) => {
     setOpen(false);
@@ -44,13 +80,21 @@ export function MarketingNav() {
         transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
         className="fixed inset-x-0 top-4 z-50 mx-auto max-w-5xl px-4 sm:px-5"
       >
-        <div
-          className="flex items-center justify-between gap-4 rounded-2xl border px-4 py-2.5"
-          style={{
-            background: "rgba(0,0,0,0.82)",
-            borderColor: "rgba(255,255,255,0.07)",
-            backdropFilter: "blur(24px)",
+        <motion.div
+          animate={{
+            background: scrolled
+              ? "rgba(0,0,0,0.92)"
+              : "rgba(0,0,0,0.72)",
+            borderColor: scrolled
+              ? "rgba(255,255,255,0.10)"
+              : "rgba(255,255,255,0.06)",
+            boxShadow: scrolled
+              ? "0 4px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,217,255,0.04) inset"
+              : "none",
           }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center justify-between gap-4 rounded-2xl border px-4 py-2.5"
+          style={{ backdropFilter: "blur(24px)" }}
         >
           <Link to="/" className="shrink-0">
             <Logo />
@@ -58,16 +102,28 @@ export function MarketingNav() {
 
           {/* Desktop nav */}
           <nav className="hidden items-center gap-0.5 md:flex">
-            {links.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={(e) => { e.preventDefault(); scrollTo(l.href); }}
-                className="rounded-lg px-3.5 py-2 text-sm text-white/40 transition-colors hover:text-white"
-              >
-                {l.label}
-              </a>
-            ))}
+            {links.map((l) => {
+              const isActive = activeSection === l.href.slice(1);
+              return (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={(e) => { e.preventDefault(); scrollTo(l.href); }}
+                  className="relative rounded-lg px-3.5 py-2 text-sm transition-colors"
+                >
+                  <span className={isActive ? "text-white" : "text-white/40 hover:text-white transition-colors"}>
+                    {l.label}
+                  </span>
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active"
+                      className="absolute inset-0 rounded-lg bg-white/[0.07]"
+                      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    />
+                  )}
+                </a>
+              );
+            })}
           </nav>
 
           {/* Desktop actions */}
@@ -80,7 +136,7 @@ export function MarketingNav() {
               Log in
             </button>
             <Button variant="white" size="sm" onClick={() => nav("/signup")}>
-              Get started
+              Get started →
             </Button>
           </div>
 
@@ -92,37 +148,51 @@ export function MarketingNav() {
               aria-label="Toggle menu"
               className="grid h-8 w-8 place-items-center rounded-lg text-white/40 transition-colors hover:text-white"
             >
-              {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={open ? "x" : "menu"}
+                  initial={{ rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: 90, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                </motion.span>
+              </AnimatePresence>
             </button>
           </div>
-        </div>
+        </motion.div>
       </motion.header>
 
       {/* Mobile menu */}
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.18 }}
             className="fixed inset-x-4 top-[4.5rem] z-40 rounded-2xl border p-3 md:hidden"
             style={{
               background: "rgba(5,5,5,0.97)",
-              borderColor: "rgba(255,255,255,0.07)",
+              borderColor: "rgba(255,255,255,0.08)",
               backdropFilter: "blur(24px)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
             }}
           >
             <nav className="flex flex-col">
-              {links.map((l) => (
-                <a
+              {links.map((l, i) => (
+                <motion.a
                   key={l.href}
                   href={l.href}
                   onClick={(e) => { e.preventDefault(); scrollTo(l.href); }}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04 }}
                   className="rounded-xl px-4 py-3 text-sm text-white/50 transition-colors hover:bg-white/[0.04] hover:text-white"
                 >
                   {l.label}
-                </a>
+                </motion.a>
               ))}
             </nav>
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.06] pt-3">

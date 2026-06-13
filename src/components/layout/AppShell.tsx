@@ -4,66 +4,80 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Sparkles, Users, MessageSquare, Rocket,
   CreditCard, Search, Bell, LogOut, Briefcase, Menu, X,
-  UserPlus, Check, MessageCircle, MapPin,
+  UserPlus, Check, MessageCircle, MapPin, Sun, Moon, Command,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { getSocket } from "@/lib/socket";
 import type { AppNotification, DevUser } from "@/types";
 
 const nav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/discover", label: "AI Matching", icon: Sparkles },
-  { to: "/connections", label: "Connections", icon: UserPlus },
-  { to: "/chat", label: "Chat", icon: MessageSquare },
-  { to: "/teams", label: "Teams", icon: Users },
-  { to: "/startups", label: "Startups", icon: Rocket },
-  { to: "/recruiter", label: "Recruiter", icon: Briefcase },
-  { to: "/billing", label: "Billing", icon: CreditCard },
+  { to: "/dashboard",   label: "Dashboard",   icon: LayoutDashboard },
+  { to: "/discover",    label: "AI Matching",  icon: Sparkles },
+  { to: "/connections", label: "Connections",  icon: UserPlus },
+  { to: "/chat",        label: "Chat",         icon: MessageSquare },
+  { to: "/teams",       label: "Teams",        icon: Users },
+  { to: "/startups",    label: "Startups",     icon: Rocket },
+  { to: "/recruiter",   label: "Recruiter",    icon: Briefcase },
+  { to: "/billing",     label: "Billing",      icon: CreditCard },
 ];
 
 const mobileNav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/discover", label: "Match", icon: Sparkles },
+  { to: "/dashboard",   label: "Home",    icon: LayoutDashboard },
+  { to: "/discover",    label: "Match",   icon: Sparkles },
   { to: "/connections", label: "Network", icon: UserPlus },
-  { to: "/chat", label: "Chat", icon: MessageSquare },
-  { to: "/teams", label: "Teams", icon: Users },
+  { to: "/chat",        label: "Chat",    icon: MessageSquare },
+  { to: "/teams",       label: "Teams",   icon: Users },
 ];
 
-// Defined OUTSIDE AppShell so React never treats it as a new component type on re-render
-function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+/* ─── Sidebar nav — outside component so React never remounts it ── */
+function SidebarNav({ unreadChat, onNavigate }: { unreadChat: number; onNavigate?: () => void }) {
+  const location = useLocation();
   return (
-    <nav className="mt-6 flex flex-1 flex-col gap-1">
-      {nav.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
+    <nav className="mt-6 flex flex-1 flex-col gap-0.5">
+      {nav.map((item) => {
+        const isActive = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+        const chatBadge = item.to === "/chat" && unreadChat > 0;
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={onNavigate}
+            className={cn(
+              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-150",
               isActive
-                ? "bg-white/[0.06] text-white shadow-glow"
+                ? "text-white"
                 : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100",
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {isActive && (
-                <span className="absolute left-0 h-6 w-0.5 rounded-full bg-neon-grad" />
-              )}
-              <item.icon className="h-4 w-4" />
+            )}
+          >
+            {isActive && (
+              <motion.span
+                layoutId="sidebar-pill"
+                className="absolute inset-0 rounded-xl bg-white/[0.07]"
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              />
+            )}
+            {isActive && (
+              <span className="absolute left-0 h-[60%] w-0.5 rounded-r-full bg-gradient-to-b from-[#00d9ff] to-[#4d7fff]" />
+            )}
+            <span className="relative z-10 flex items-center gap-3 flex-1">
+              <item.icon className="h-4 w-4 shrink-0" />
               {item.label}
-            </>
-          )}
-        </NavLink>
-      ))}
+              {chatBadge && (
+                <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-neon-magenta text-[9px] font-bold text-white">
+                  {unreadChat > 9 ? "9+" : unreadChat}
+                </span>
+              )}
+            </span>
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }
@@ -78,31 +92,54 @@ function NotificationIcon(type: string) {
   }
 }
 
+/* ─── Page transition wrapper ────────────────────────────────────── */
+const pageVariants = {
+  initial: { opacity: 0, y: 12 },
+  enter:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } },
+  exit:    { opacity: 0, y: -6, transition: { duration: 0.15 } },
+};
+
 export function AppShell() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [unreadChat, setUnreadChat] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<DevUser[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const location = useLocation();
   const closeDrawer = () => setDrawerOpen(false);
 
-  // Close mobile drawer on every route change — most reliable approach
+  /* Scroll to top on route change */
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
     setDrawerOpen(false);
   }, [location.pathname]);
 
-  // Debounced developer search
+  /* Cmd+K / Ctrl+K to focus search */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const handleSearchChange = useCallback((q: string) => {
     setSearchQuery(q);
     clearTimeout(searchTimer.current);
@@ -115,20 +152,19 @@ export function AppShell() {
         setSearchResults(users);
       } catch { setSearchResults([]); }
       finally { setSearchLoading(false); }
-    }, 300);
+    }, 280);
   }, []);
 
-  // Close search on outside click
+  /* Outside click — search */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setSearchOpen(false);
-      }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  /* Notifications */
   useEffect(() => {
     api.notifications().then(setNotifications).catch(() => {});
     api.notificationUnreadCount().then(setUnread).catch(() => {});
@@ -151,16 +187,21 @@ export function AppShell() {
       };
       setNotifications((prev) => [notif, ...prev]);
       setUnread((u) => u + 1);
+      if (n.type === "message") setUnreadChat((c) => c + 1);
     };
     socket.on("notification:new", handler);
     return () => { socket.off("notification:new", handler); };
   }, []);
 
+  /* Clear chat badge when user navigates to /chat */
+  useEffect(() => {
+    if (location.pathname === "/chat") setUnreadChat(0);
+  }, [location.pathname]);
+
+  /* Outside click — notifications */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
-      }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -202,27 +243,43 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Desktop Sidebar */}
+      {/* ── Desktop Sidebar ── */}
       <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-white/5 bg-ink-950/40 p-4 backdrop-blur-xl lg:flex">
         <div className="px-2 py-2">
           <NavLink to="/dashboard" className="block"><Logo /></NavLink>
         </div>
-        <SidebarNav />
-        <div className="glass mt-4 flex items-center gap-3 p-3">
-          <button onClick={() => navigate("/profile")}>
+
+        <SidebarNav unreadChat={unreadChat} />
+
+        {/* User card */}
+        <div className="mt-4 glass flex items-center gap-3 p-3 group">
+          <button onClick={() => navigate("/profile")} className="shrink-0">
             <Avatar src={user?.avatar} name={user?.name ?? "You"} status="open" size={36} />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">{user?.name}</p>
+            <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
             <p className="truncate text-xs text-slate-500">@{user?.handle}</p>
           </div>
-          <button onClick={handleLogout} className="text-slate-500 transition hover:text-neon-magenta" title="Log out">
-            <LogOut className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={toggleTheme}
+              className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:text-neon-cyan hover:bg-white/[0.05] transition"
+              title="Toggle theme"
+            >
+              {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:text-neon-magenta hover:bg-white/[0.05] transition"
+              title="Log out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Mobile drawer overlay */}
+      {/* ── Mobile Drawer Overlay ── */}
       <AnimatePresence>
         {drawerOpen && (
           <motion.div
@@ -236,7 +293,7 @@ export function AppShell() {
         )}
       </AnimatePresence>
 
-      {/* Mobile drawer panel */}
+      {/* ── Mobile Drawer Panel ── */}
       <AnimatePresence>
         {drawerOpen && (
           <motion.aside
@@ -257,11 +314,11 @@ export function AppShell() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <SidebarNav onNavigate={closeDrawer} />
+            <SidebarNav unreadChat={unreadChat} onNavigate={closeDrawer} />
             <div className="glass mt-4 flex items-center gap-3 p-3">
               <Avatar src={user?.avatar} name={user?.name ?? "You"} status="open" size={36} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white">{user?.name}</p>
+                <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
                 <p className="truncate text-xs text-slate-500">@{user?.handle}</p>
               </div>
               <button onClick={handleLogout} className="text-slate-500 transition hover:text-neon-magenta">
@@ -272,7 +329,7 @@ export function AppShell() {
         )}
       </AnimatePresence>
 
-      {/* Main */}
+      {/* ── Main content area ── */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar */}
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/5 bg-ink-950/50 px-4 py-3 backdrop-blur-xl sm:gap-4 sm:px-5">
@@ -286,19 +343,24 @@ export function AppShell() {
 
           {/* Search */}
           <div className="relative flex-1 max-w-md" ref={searchRef}>
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-400 focus-within:border-neon-cyan/40">
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-400 focus-within:border-neon-cyan/40 transition-colors">
               <Search className="h-4 w-4 shrink-0" />
               <input
+                ref={searchInputRef}
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => searchQuery.trim() && setSearchOpen(true)}
                 placeholder="Search developers, skills…"
                 className="w-full bg-transparent outline-none placeholder:text-slate-500 text-white"
               />
-              {searchQuery && (
-                <button onClick={() => { setSearchQuery(""); setSearchResults([]); setSearchOpen(false); }} className="text-slate-500 hover:text-white">
+              {searchQuery ? (
+                <button onClick={() => { setSearchQuery(""); setSearchResults([]); setSearchOpen(false); }} className="text-slate-500 hover:text-white transition-colors">
                   <X className="h-3.5 w-3.5" />
                 </button>
+              ) : (
+                <kbd className="hidden items-center gap-1 rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-white/20 sm:flex">
+                  <Command className="h-2.5 w-2.5" />K
+                </kbd>
               )}
             </div>
 
@@ -312,20 +374,26 @@ export function AppShell() {
                   className="absolute left-0 right-0 top-11 z-50 overflow-hidden rounded-2xl border border-white/10 bg-ink-950/95 shadow-2xl backdrop-blur-xl"
                 >
                   {searchLoading ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-slate-500">Searching…</div>
+                    <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
+                      <span className="h-4 w-4 rounded-full border border-slate-600 border-t-neon-cyan animate-spin block" />
+                      Searching…
+                    </div>
                   ) : searchResults.length === 0 ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-slate-500">No developers found</div>
+                    <div className="flex flex-col items-center justify-center py-8 text-sm text-slate-500">
+                      <Search className="h-6 w-6 mb-2 opacity-30" />
+                      No developers found
+                    </div>
                   ) : (
                     <div className="max-h-80 overflow-y-auto py-2">
                       {searchResults.map((u) => (
                         <button
                           key={u.id}
                           onClick={() => { navigate(`/profile/${u.id}`); setSearchOpen(false); setSearchQuery(""); }}
-                          className="flex w-full items-center gap-3 px-4 py-2.5 transition hover:bg-white/[0.05]"
+                          className="flex w-full items-center gap-3 px-4 py-2.5 transition hover:bg-white/[0.05] group"
                         >
                           <Avatar src={u.avatar} name={u.name} size={36} status={u.availability} />
                           <div className="min-w-0 flex-1 text-left">
-                            <p className="truncate text-sm font-medium text-white">{u.name}</p>
+                            <p className="truncate text-sm font-medium text-white group-hover:text-neon-cyan transition-colors">{u.name}</p>
                             <p className="flex items-center gap-1 truncate text-xs text-slate-400">
                               {u.role}
                               {u.location && <><span className="text-slate-600">·</span><MapPin className="h-3 w-3" />{u.location}</>}
@@ -343,19 +411,33 @@ export function AppShell() {
             </AnimatePresence>
           </div>
 
+          {/* Theme toggle (desktop) */}
+          <button
+            onClick={toggleTheme}
+            className="hidden sm:grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition shrink-0"
+            title="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+
           <Badge tone="cyan" className="hidden sm:inline-flex shrink-0">{user?.tier?.toUpperCase()} plan</Badge>
 
           {/* Notification Bell */}
           <div className="relative shrink-0" ref={notifRef}>
             <button
-              onClick={() => setNotifOpen(!notifOpen)}
-              className="relative rounded-lg border border-white/10 p-2 text-slate-300 transition hover:text-white"
+              onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen && unread > 0) markAllRead(); }}
+              className="relative rounded-lg border border-white/10 p-2 text-slate-300 transition hover:text-white hover:border-white/20"
             >
               <Bell className="h-4 w-4" />
               {unread > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-neon-magenta text-[9px] font-bold text-white">
+                <motion.span
+                  key={unread}
+                  initial={{ scale: 0.5 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-neon-magenta text-[9px] font-bold text-white"
+                >
                   {unread > 9 ? "9+" : unread}
-                </span>
+                </motion.span>
               )}
             </button>
 
@@ -377,7 +459,7 @@ export function AppShell() {
                   <div className="max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 text-slate-500">
-                        <Bell className="h-8 w-8 mb-2 opacity-30" />
+                        <Bell className="h-8 w-8 mb-2 opacity-20" />
                         <p className="text-sm">All caught up!</p>
                       </div>
                     ) : (
@@ -387,7 +469,7 @@ export function AppShell() {
                           onClick={() => handleNotifClick(n)}
                           className={cn(
                             "flex cursor-pointer items-start gap-3 px-4 py-3 transition hover:bg-white/[0.04]",
-                            !n.read && "bg-neon-cyan/[0.04]",
+                            !n.read && "bg-neon-cyan/[0.03]",
                           )}
                         >
                           <div className="mt-0.5 shrink-0">
@@ -400,7 +482,7 @@ export function AppShell() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className={cn("text-sm", n.read ? "text-slate-400" : "text-white")}>{n.message}</p>
+                            <p className={cn("text-sm leading-snug", n.read ? "text-slate-400" : "text-white")}>{n.message}</p>
                             <p className="text-xs text-slate-600 mt-0.5">
                               {new Date(n.createdAt).toLocaleDateString()}
                             </p>
@@ -425,7 +507,13 @@ export function AppShell() {
                               </div>
                             )}
                           </div>
-                          {!n.read && <div className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-neon-cyan" />}
+                          {!n.read && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-neon-cyan"
+                            />
+                          )}
                         </div>
                       ))
                     )}
@@ -435,33 +523,59 @@ export function AppShell() {
             </AnimatePresence>
           </div>
 
-          <NavLink to="/profile" className="shrink-0 rounded-full">
+          <NavLink to="/profile" className="shrink-0 rounded-full ring-2 ring-transparent hover:ring-neon-cyan/30 transition">
             <Avatar src={user?.avatar} name={user?.name ?? "You"} size={36} />
           </NavLink>
         </header>
 
+        {/* Page content with transitions */}
         <main className="min-w-0 flex-1 p-4 pb-24 sm:p-5 lg:p-8 lg:pb-8">
-          <Outlet />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              variants={pageVariants}
+              initial="initial"
+              animate="enter"
+              exit="exit"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 
-      {/* Mobile Bottom Nav */}
+      {/* ── Mobile Bottom Nav ── */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-white/5 bg-ink-950/90 backdrop-blur-xl lg:hidden">
-        {mobileNav.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              cn(
-                "flex flex-1 flex-col items-center justify-center gap-1 py-3 text-[10px] font-medium transition-colors",
-                isActive ? "text-neon-cyan" : "text-slate-500 hover:text-slate-300",
-              )
-            }
-          >
-            <item.icon className="h-5 w-5" />
-            <span>{item.label.split(" ")[0]}</span>
-          </NavLink>
-        ))}
+        {mobileNav.map((item) => {
+          const isActive = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+          const chatBadge = item.to === "/chat" && unreadChat > 0;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className="relative flex flex-1 flex-col items-center justify-center gap-1 py-3 text-[10px] font-medium transition-colors"
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="mobile-tab-indicator"
+                  className="absolute inset-x-2 top-0 h-0.5 rounded-b-full bg-gradient-to-r from-[#00d9ff] to-[#4d7fff]"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className={cn("relative transition-colors", isActive ? "text-neon-cyan" : "text-slate-500 hover:text-slate-300")}>
+                <item.icon className="h-5 w-5" />
+                {chatBadge && (
+                  <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-neon-magenta text-[8px] font-bold text-white">
+                    {unreadChat > 9 ? "9+" : unreadChat}
+                  </span>
+                )}
+              </span>
+              <span className={cn("transition-colors", isActive ? "text-neon-cyan" : "text-slate-500")}>
+                {item.label}
+              </span>
+            </NavLink>
+          );
+        })}
       </nav>
     </div>
   );

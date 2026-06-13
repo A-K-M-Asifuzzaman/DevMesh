@@ -1,11 +1,11 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
   Eye, Sparkles, Users, TrendingUp, ArrowUpRight, Plus, X,
-  ChevronRight, ChevronLeft, BookmarkCheck, Briefcase,
+  ChevronRight, ChevronLeft, BookmarkCheck, Briefcase, Zap,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -17,20 +17,40 @@ import { Button } from "@/components/ui/Button";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
-import { fmt } from "@/lib/utils";
+import { fmt as _fmt } from "@/lib/utils";
 import type { Task, DevUser } from "@/types";
 
 function greeting() {
   const h = new Date().getHours();
+  if (h < 5)  return "Good night";
   if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+  if (h < 17) return "Good afternoon";
+  if (h < 21) return "Good evening";
+  return "Good night";
 }
 
 const stagger = {
   hidden: { opacity: 0, y: 16 },
-  show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06 } }),
+  show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] } }),
 };
+
+/* Animated number count-up */
+function CountUp({ to, duration = 1.2, className }: { to: number; duration?: number; className?: string }) {
+  const motionVal = useMotionValue(0);
+  const rounded = useTransform(motionVal, (v) => {
+    if (to >= 1000) return `${(v / 1000).toFixed(1)}k`;
+    return Math.round(v).toString();
+  });
+  const [display, setDisplay] = useState("0");
+
+  useEffect(() => {
+    const controls = animate(motionVal, to, { duration, ease: "easeOut" });
+    const unsub = rounded.on("change", setDisplay);
+    return () => { controls.stop(); unsub(); };
+  }, [to]);
+
+  return <span className={className}>{display}</span>;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -107,10 +127,10 @@ export default function Dashboard() {
   };
 
   const stats = useMemo(() => [
-    { label: "Followers", value: fmt(user?.followers ?? 0), delta: "+followers", icon: Eye, tone: "cyan" as const },
-    { label: "AI Matches", value: String(matches?.length ?? 0), delta: "suggested", icon: Sparkles, tone: "magenta" as const },
-    { label: "Teams", value: String(teams?.length ?? 0), delta: "workspaces", icon: Users, tone: "lime" as const },
-    { label: "Reputation", value: fmt(user?.rep ?? 0), delta: "rep score", icon: TrendingUp, tone: "blue" as const },
+    { label: "Followers",  numericValue: user?.followers ?? 0, delta: "followers",  icon: Eye,       tone: "cyan"    as const },
+    { label: "AI Matches", numericValue: matches?.length ?? 0, delta: "suggested",  icon: Sparkles,  tone: "magenta" as const },
+    { label: "Teams",      numericValue: teams?.length ?? 0,   delta: "workspaces", icon: Users,     tone: "lime"    as const },
+    { label: "Reputation", numericValue: user?.rep ?? 0,       delta: "rep score",  icon: TrendingUp, tone: "blue"   as const },
   ], [user, matches, teams]);
 
   const hasTeam = teams && teams.length > 0;
@@ -119,27 +139,63 @@ export default function Dashboard() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-white">
-            {greeting()}, {user?.name?.split(" ")[0] ?? "there"}
-          </h1>
-          <p className="text-sm text-slate-400">Here's how your mesh is performing.</p>
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-[11px] font-medium uppercase tracking-widest text-neon-cyan/60 mb-1"
+          >
+            Dashboard
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="font-display text-2xl font-bold text-white sm:text-3xl"
+          >
+            {greeting()}, {user?.name?.split(" ")[0] ?? "there"} 👋
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="text-sm text-slate-400"
+          >
+            Here's how your mesh is performing.
+          </motion.p>
         </div>
-        <Link to="/discover">
-          <Button size="sm">
-            <Sparkles className="h-4 w-4" /> Find teammates
-          </Button>
-        </Link>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.15 }}
+          className="flex flex-wrap gap-2"
+        >
+          <Link to="/discover">
+            <Button size="sm">
+              <Sparkles className="h-4 w-4" /> Find teammates
+            </Button>
+          </Link>
+          <Link to="/startups">
+            <Button size="sm" variant="outline">
+              <Zap className="h-4 w-4" /> Startups
+            </Button>
+          </Link>
+        </motion.div>
       </header>
 
       {/* Stat bento */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((s, i) => (
           <motion.div key={s.label} variants={stagger} initial="hidden" animate="show" custom={i}>
-            <GlassCard interactive className="relative overflow-hidden">
-              <s.icon className="absolute -right-3 -top-3 h-16 w-16 text-white/[0.03]" />
-              <p className="text-xs text-slate-400">{s.label}</p>
-              <p className="mt-2 font-display text-3xl font-bold text-white">{s.value}</p>
-              <Badge tone={s.tone} className="mt-3">
+            <GlassCard interactive className="relative overflow-hidden group cursor-default">
+              {/* Hover glow */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,217,255,0.04) 0%, transparent 70%)" }} />
+              <s.icon className="absolute -right-2 -top-2 h-14 w-14 text-white/[0.04] group-hover:text-white/[0.07] transition-colors" />
+              <p className="relative text-xs font-medium text-slate-500 uppercase tracking-wider">{s.label}</p>
+              <p className="relative mt-2 font-display text-3xl font-bold text-white">
+                <CountUp to={s.numericValue} />
+              </p>
+              <Badge tone={s.tone} className="relative mt-3">
                 <ArrowUpRight className="h-3 w-3" /> {s.delta}
               </Badge>
             </GlassCard>
@@ -193,23 +249,41 @@ export default function Dashboard() {
         {/* AI suggestions */}
         <GlassCard>
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-display font-semibold text-white">Top AI matches</h3>
-            <Link to="/discover" className="text-xs text-neon-cyan hover:underline">View all</Link>
+            <div>
+              <h3 className="font-display font-semibold text-white">Top AI matches</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Scored by stack, skills & ambition</p>
+            </div>
+            <Link to="/discover" className="text-xs text-neon-cyan hover:underline flex items-center gap-1">
+              View all <ArrowUpRight className="h-3 w-3" />
+            </Link>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {mLoading || !matches
               ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
               : matches.length === 0
-              ? <p className="text-xs text-slate-500 text-center py-4">No matches yet — complete your profile to get ranked.</p>
-              : matches.slice(0, 3).map((m) => (
-                  <div key={m.user.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-2.5">
-                    <Avatar src={m.user.avatar} name={m.user.name} status={m.user.availability} size={36} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-white">{m.user.name}</p>
-                      <p className="truncate text-xs text-slate-500">{m.user.role || "Developer"}</p>
-                    </div>
-                    <ScoreRing value={m.score} size={42} />
-                  </div>
+              ? (
+                <div className="flex flex-col items-center py-6 text-center">
+                  <Sparkles className="h-8 w-8 text-white/10 mb-2" />
+                  <p className="text-xs text-slate-500">Complete your profile to get AI-ranked matches.</p>
+                  <Link to="/profile" className="mt-3 text-xs text-neon-cyan hover:underline">Set up profile →</Link>
+                </div>
+              )
+              : matches.slice(0, 4).map((m, i) => (
+                  <motion.div
+                    key={m.user.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.07 }}
+                  >
+                    <Link to={`/profile/${m.user.id}`} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 hover:border-neon-cyan/20 hover:bg-neon-cyan/[0.03] transition group">
+                      <Avatar src={m.user.avatar} name={m.user.name} status={m.user.availability} size={36} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-white group-hover:text-neon-cyan transition-colors">{m.user.name}</p>
+                        <p className="truncate text-xs text-slate-500">{m.user.role || "Developer"}</p>
+                      </div>
+                      <ScoreRing value={m.score} size={40} />
+                    </Link>
+                  </motion.div>
                 ))}
           </div>
         </GlassCard>
