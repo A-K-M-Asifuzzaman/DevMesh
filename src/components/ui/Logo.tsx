@@ -11,7 +11,7 @@ export function Logo({ className, withWord = true }: { className?: string; withW
         </svg>
       </span>
       {withWord && (
-        <span className="font-display text-lg font-bold tracking-tight text-white">
+        <span className="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">
           Dev<span className="text-grad">Mesh</span>
         </span>
       )}

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, RequireAuth } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AuroraBackground } from "@/components/layout/AuroraBackground";
 import { AppShell } from "@/components/layout/AppShell";
@@ -31,53 +32,55 @@ function PageFallback() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <AuroraBackground />
-          <Suspense fallback={<PageFallback />}>
-            <Routes>
-              {/* Public */}
-              <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <AuroraBackground />
+            <Suspense fallback={<PageFallback />}>
+              <Routes>
+                {/* Public */}
+                <Route path="/" element={<Landing />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
 
-              {/* Onboarding — authenticated but outside AppShell */}
-              <Route
-                path="/onboarding"
-                element={
-                  <RequireAuth>
-                    <Onboarding />
-                  </RequireAuth>
-                }
-              />
+                {/* Onboarding — authenticated but outside AppShell */}
+                <Route
+                  path="/onboarding"
+                  element={
+                    <RequireAuth>
+                      <Onboarding />
+                    </RequireAuth>
+                  }
+                />
 
-              {/* Authenticated app */}
-              <Route
-                element={
-                  <RequireAuth>
-                    <AppShell />
-                  </RequireAuth>
-                }
-              >
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/discover" element={<Discover />} />
-                <Route path="/chat" element={<Chat />} />
-                <Route path="/messages" element={<Navigate to="/chat" replace />} />
-                <Route path="/teams" element={<Teams />} />
-                <Route path="/startups" element={<Startups />} />
-                <Route path="/recruiter" element={<Recruiter />} />
-                <Route path="/billing" element={<Billing />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/profile/:id" element={<UserProfile />} />
-                <Route path="/connections" element={<Connections />} />
-              </Route>
+                {/* Authenticated app */}
+                <Route
+                  element={
+                    <RequireAuth>
+                      <AppShell />
+                    </RequireAuth>
+                  }
+                >
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/discover" element={<Discover />} />
+                  <Route path="/chat" element={<Chat />} />
+                  <Route path="/messages" element={<Navigate to="/chat" replace />} />
+                  <Route path="/teams" element={<Teams />} />
+                  <Route path="/startups" element={<Startups />} />
+                  <Route path="/recruiter" element={<Recruiter />} />
+                  <Route path="/billing" element={<Billing />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/profile/:id" element={<UserProfile />} />
+                  <Route path="/connections" element={<Connections />} />
+                </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </ToastProvider>
-      </AuthProvider>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

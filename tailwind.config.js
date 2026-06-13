@@ -5,23 +5,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Near-black base — deliberately cool, not pure #000
+        // True matte black surface scale
         ink: {
-          950: "#05060a",
-          900: "#0a0c14",
-          800: "#10131f",
-          700: "#181c2b",
-          600: "#222739",
+          950: "#000000",
+          900: "#080808",
+          800: "#0f0f0f",
+          700: "#161616",
+          600: "#1e1e1e",
+          500: "#262626",
         },
-        // Signature neon: electric cyan -> teal, with a magenta sparingly
+        // Single accent: cyan only. Blue only as gradient pair.
         neon: {
-          cyan: "#34e7e4",
-          teal: "#2dd4bf",
-          blue: "#4d7cff",
-          lime: "#b6ff3c",
-          magenta: "#ff4d9d",
+          cyan: "#00d9ff",
+          blue: "#4d7fff",
+          // kept for ScoreRing internals only:
+          teal: "#0ea5e9",
+          lime: "#a3e635",
+          magenta: "#ec4899",
         },
-        line: "rgba(255,255,255,0.08)",
+        line: "rgba(255,255,255,0.05)",
       },
       fontFamily: {
         display: ['"Clash Display"', "Sora", "sans-serif"],
@@ -29,36 +31,36 @@ export default {
         mono: ['"Geist Mono"', '"JetBrains Mono"', "monospace"],
       },
       backgroundImage: {
-        "neon-grad":
-          "linear-gradient(110deg,#34e7e4 0%,#4d7cff 45%,#ff4d9d 100%)",
-        "neon-soft":
-          "linear-gradient(135deg,rgba(52,231,228,0.18),rgba(77,124,255,0.10) 60%,rgba(255,77,157,0.12))",
-        grid: "linear-gradient(rgba(255,255,255,0.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.045) 1px,transparent 1px)",
+        // Cyan → blue only — no magenta
+        "neon-grad": "linear-gradient(110deg,#00d9ff 0%,#4d7fff 100%)",
+        "neon-soft": "linear-gradient(135deg,rgba(0,217,255,0.08),rgba(77,127,255,0.06))",
+        // Very subtle dot grid
+        grid: "radial-gradient(circle,rgba(255,255,255,0.06) 1px,transparent 1px)",
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(52,231,228,0.18), 0 0 40px -8px rgba(52,231,228,0.35)",
-        "glow-blue":
-          "0 0 0 1px rgba(77,124,255,0.18), 0 0 48px -10px rgba(77,124,255,0.45)",
-        card: "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.8)",
+        glow: "0 0 0 1px rgba(0,217,255,0.1), 0 0 24px -4px rgba(0,217,255,0.2)",
+        "glow-sm": "0 0 0 1px rgba(0,217,255,0.08), 0 0 16px -6px rgba(0,217,255,0.15)",
+        "glow-blue": "0 0 0 1px rgba(77,127,255,0.12), 0 0 32px -8px rgba(77,127,255,0.25)",
+        card: "0 1px 0 rgba(255,255,255,0.02) inset, 0 20px 60px -20px rgba(0,0,0,1)",
+        "card-hover": "0 1px 0 rgba(255,255,255,0.03) inset, 0 24px 80px -16px rgba(0,0,0,1)",
       },
       keyframes: {
-        float: { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-12px)" } },
-        aurora: {
-          "0%": { transform: "translate(-10%,-10%) rotate(0deg)" },
-          "50%": { transform: "translate(10%,5%) rotate(180deg)" },
-          "100%": { transform: "translate(-10%,-10%) rotate(360deg)" },
-        },
+        float: { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-8px)" } },
         shimmer: { "100%": { transform: "translateX(100%)" } },
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(16px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
         "pulse-ring": {
-          "0%": { boxShadow: "0 0 0 0 rgba(52,231,228,0.5)" },
-          "70%": { boxShadow: "0 0 0 10px rgba(52,231,228,0)" },
-          "100%": { boxShadow: "0 0 0 0 rgba(52,231,228,0)" },
+          "0%": { boxShadow: "0 0 0 0 rgba(0,217,255,0.35)" },
+          "70%": { boxShadow: "0 0 0 8px rgba(0,217,255,0)" },
+          "100%": { boxShadow: "0 0 0 0 rgba(0,217,255,0)" },
         },
       },
       animation: {
         float: "float 6s ease-in-out infinite",
-        aurora: "aurora 28s linear infinite",
         shimmer: "shimmer 1.6s infinite",
+        "fade-up": "fade-up 0.5s ease forwards",
         "pulse-ring": "pulse-ring 2.4s infinite",
       },
     },
