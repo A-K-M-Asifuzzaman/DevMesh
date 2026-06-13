@@ -94,9 +94,8 @@ function NotificationIcon(type: string) {
 
 /* ─── Page transition wrapper ────────────────────────────────────── */
 const pageVariants = {
-  initial: { opacity: 0, y: 12 },
-  enter:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } },
-  exit:    { opacity: 0, y: -6, transition: { duration: 0.15 } },
+  initial: { opacity: 0, y: 10 },
+  enter:   { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } },
 };
 
 export function AppShell() {
@@ -528,19 +527,16 @@ export function AppShell() {
           </NavLink>
         </header>
 
-        {/* Page content with transitions */}
+        {/* Page content with fade-in transitions (no exit animation — avoids React Router Outlet conflicts) */}
         <main className="min-w-0 flex-1 p-4 pb-24 sm:p-5 lg:p-8 lg:pb-8">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location.pathname}
-              variants={pageVariants}
-              initial="initial"
-              animate="enter"
-              exit="exit"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key={location.pathname}
+            variants={pageVariants}
+            initial="initial"
+            animate="enter"
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
 
