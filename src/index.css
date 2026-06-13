@@ -7,62 +7,62 @@
   html.dark { color-scheme: dark; }
   html:not(.dark) { color-scheme: light; }
 
-  * { border-color: theme("colors.line"); }
   html { scroll-behavior: smooth; }
 
   body {
     @apply font-sans antialiased;
     background-color: #000000;
-    color: #c9cdd4;
+    color: rgba(255,255,255,0.82);
     min-height: 100vh;
   }
 
-  ::selection { background: rgba(0, 217, 255, 0.18); }
+  ::selection { background: rgba(0, 217, 255, 0.2); color: #fff; }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 217, 255, 0.25);
+    background: rgba(0, 217, 255, 0.3);
   }
 }
 
 @layer components {
-  /* Premium matte glass — barely-there surface */
+  /* ── Glass surface — premium matte ── */
   .glass {
     border-radius: 1rem;
-    backdrop-filter: blur(20px);
-    background: rgba(255, 255, 255, 0.022);
-    border: 1px solid rgba(255, 255, 255, 0.055);
-    box-shadow: theme("boxShadow.card");
+    backdrop-filter: blur(24px) saturate(1.2);
+    background: rgba(255, 255, 255, 0.024);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.025) inset,
+      0 24px 64px -20px rgba(0,0,0,1);
   }
   .glass-hover {
     @apply transition-all duration-300;
   }
   .glass-hover:hover {
-    background: rgba(255, 255, 255, 0.038);
-    border-color: rgba(255, 255, 255, 0.09);
-    box-shadow: theme("boxShadow.card-hover");
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
-  /* Gradient text — cyan → blue */
+  /* ── Gradient text — cyan → blue ── */
   .text-grad {
-    background: theme("backgroundImage.neon-grad");
+    background: linear-gradient(110deg, #00d9ff 0%, #4d7fff 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Hairline fading divider */
+  /* ── Hairline fading divider ── */
   .hairline {
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
   }
 
-  /* Glow border via pseudo element */
+  /* ── Glow border via pseudo element ── */
   .glow-border {
     position: relative;
   }
@@ -72,22 +72,22 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: theme("backgroundImage.neon-grad");
+    background: linear-gradient(110deg, #00d9ff, #4d7fff);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    opacity: 0.3;
+    opacity: 0.25;
     pointer-events: none;
   }
 
-  /* Section divider line */
+  /* ── Section divider ── */
   .section-line {
     border: 0;
     border-top: 1px solid rgba(255, 255, 255, 0.055);
   }
 }
 
-/* Skeleton */
+/* ── Skeleton shimmer ── */
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -99,37 +99,129 @@
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
   animation: shimmer 1.6s infinite;
 }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
 
-/* ── Light mode ── */
+/* ════════════════════════════════════════════════════════
+   LIGHT MODE
+   ════════════════════════════════════════════════════════ */
 html:not(.dark) body {
-  background-color: #f5f5f7;
-  color: #1d1d1f;
+  background-color: #f7f7f8;
+  color: #111111;
 }
+
+/* Aurora/background in light mode */
+html:not(.dark) [class*="aurora"],
+html:not(.dark) .pointer-events-none.fixed.-z-10 {
+  opacity: 0.15;
+}
+
+/* Glass cards in light mode */
 html:not(.dark) .glass {
-  background: rgba(255, 255, 255, 0.78);
-  border-color: rgba(0, 0, 0, 0.06);
-  box-shadow: 0 1px 1px rgba(0,0,0,0.03), 0 4px 24px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.9) inset;
-  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 1px 1px rgba(0,0,0,0.04),
+    0 4px 24px rgba(0,0,0,0.08),
+    0 1px 0 rgba(255,255,255,0.9) inset;
+  backdrop-filter: blur(20px) saturate(1.5);
 }
 html:not(.dark) .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(0, 0, 0, 0.09);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.1);
 }
+
+/* Dividers */
 html:not(.dark) .hairline {
   background: linear-gradient(90deg, transparent, rgba(0,0,0,0.07), transparent);
 }
 html:not(.dark) .section-line {
-  border-color: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.07);
 }
+
+/* Scrollbar */
 html:not(.dark) ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.1);
 }
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 217, 255, 0.3);
+}
+
+/* Skeleton */
 html:not(.dark) .skeleton {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.05);
 }
 html:not(.dark) .skeleton::after {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+}
+
+/* ── Light mode text overrides ─────────────────────────────
+   These map white-based Tailwind classes to dark text.
+   They use !important to override the generated utilities. */
+html:not(.dark) .text-white { color: rgba(10,10,10,0.90) !important; }
+html:not(.dark) .text-white\/80 { color: rgba(10,10,10,0.80) !important; }
+html:not(.dark) .text-white\/75 { color: rgba(10,10,10,0.75) !important; }
+html:not(.dark) .text-white\/70 { color: rgba(10,10,10,0.70) !important; }
+html:not(.dark) .text-white\/65 { color: rgba(10,10,10,0.65) !important; }
+html:not(.dark) .text-white\/60 { color: rgba(10,10,10,0.60) !important; }
+html:not(.dark) .text-white\/50 { color: rgba(10,10,10,0.50) !important; }
+html:not(.dark) .text-white\/40 { color: rgba(10,10,10,0.42) !important; }
+html:not(.dark) .text-white\/35 { color: rgba(10,10,10,0.40) !important; }
+html:not(.dark) .text-white\/30 { color: rgba(10,10,10,0.35) !important; }
+html:not(.dark) .text-white\/25 { color: rgba(10,10,10,0.28) !important; }
+html:not(.dark) .text-white\/20 { color: rgba(10,10,10,0.25) !important; }
+html:not(.dark) .text-white\/15 { color: rgba(10,10,10,0.20) !important; }
+html:not(.dark) .text-slate-400 { color: rgba(10,10,10,0.50) !important; }
+html:not(.dark) .text-slate-500 { color: rgba(10,10,10,0.42) !important; }
+html:not(.dark) .text-slate-300 { color: rgba(10,10,10,0.60) !important; }
+
+/* ── Light mode background overrides ── */
+html:not(.dark) .bg-white\/\[0\.03\],
+html:not(.dark) .bg-white\/\[0\.02\],
+html:not(.dark) .bg-white\/\[0\.018\],
+html:not(.dark) .bg-white\/\[0\.025\] {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+html:not(.dark) .bg-white\/\[0\.04\],
+html:not(.dark) .bg-white\/\[0\.05\],
+html:not(.dark) .bg-white\/\[0\.06\],
+html:not(.dark) .bg-white\/\[0\.07\],
+html:not(.dark) .bg-white\/\[0\.08\] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+html:not(.dark) .bg-white\/10 { background-color: rgba(0,0,0,0.08) !important; }
+
+/* ── Light mode border overrides ── */
+html:not(.dark) .border-white\/\[0\.05\],
+html:not(.dark) .border-white\/\[0\.06\],
+html:not(.dark) .border-white\/\[0\.07\],
+html:not(.dark) .border-white\/\[0\.08\] { border-color: rgba(0,0,0,0.09) !important; }
+html:not(.dark) .border-white\/10 { border-color: rgba(0,0,0,0.10) !important; }
+html:not(.dark) .border-white\/\[0\.04\] { border-color: rgba(0,0,0,0.07) !important; }
+html:not(.dark) .divide-white\/\[0\.05\] > * { border-color: rgba(0,0,0,0.07) !important; }
+
+/* ── Light mode — ink palette (dark bg classes used in app shell) ── */
+html:not(.dark) .bg-ink-950,
+html:not(.dark) .bg-ink-900 { background-color: #f0f0f2 !important; }
+html:not(.dark) .bg-ink-800 { background-color: #e8e8ea !important; }
+html:not(.dark) .bg-ink-700 { background-color: #e0e0e2 !important; }
+html:not(.dark) .border-ink-800 { border-color: rgba(0,0,0,0.10) !important; }
+
+/* ── Nav in light mode ── */
+html:not(.dark) .fixed.inset-x-0 [style*="rgba(0,0,0,0.82)"] {
+  background: rgba(245,245,247,0.92) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* ── Input fields in light mode ── */
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select {
+  color: #111 !important;
+}
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: rgba(10,10,10,0.30) !important;
 }

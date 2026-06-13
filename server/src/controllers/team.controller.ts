@@ -46,6 +46,33 @@ export async function createTeam(req: AuthedRequest, res: Response) {
   res.status(201).json({ team: populated });
 }
 
+export async function deleteTeam(req: AuthedRequest, res: Response) {
+  const team = await Team.findById(req.params.id).lean();
+  if (!team) return res.status(404).json({ error: "Team not found" });
+  if (String((team as any).owner) !== req.userId)
+    return res.status(403).json({ error: "Only the team owner can delete this team" });
+  await Team.findByIdAndDelete(req.params.id);
+  if ((team as any).conversation)
+    await Conversation.findByIdAndDelete((team as any).conversation);
+  res.json({ ok: true });
+}
+
+export async function removeMember(req: AuthedRequest, res: Response) {
+  const { id, memberId } = req.params;
+  const team = await Team.findById(id).lean();
+  if (!team) return res.status(404).json({ error: "Team not found" });
+  if (String((team as any).owner) !== req.userId)
+    return res.status(403).json({ error: "Only the owner can remove members" });
+  if (memberId === req.userId)
+    return res.status(400).json({ error: "Owner cannot remove themselves" });
+  const updated = await Team.findByIdAndUpdate(
+    id,
+    { $pull: { members: memberId } },
+    { new: true },
+  ).populate("members", MEMBER_FIELDS).lean();
+  res.json({ team: updated });
+}
+
 export async function joinTeam(req: AuthedRequest, res: Response) {
   const team = await Team.findByIdAndUpdate(
     req.params.id,

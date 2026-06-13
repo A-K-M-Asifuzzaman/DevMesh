@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowBigUp, MessageCircle, Plus, Sparkles, Rocket, X, Tag,
-  Users, Check, XCircle, ChevronDown,
+  Users, Check, XCircle, ChevronDown, Trophy,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
@@ -12,12 +12,23 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useAsync } from "@/hooks/useAsync";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import { fmt } from "@/lib/utils";
+import { fmt, cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import type { StartupIdea, IdeaApplication } from "@/types";
 
 const ROLES = ["Frontend Dev","Backend Dev","Full-Stack Dev","Mobile Dev","UI/UX Designer","Data Scientist","DevOps","Product Manager","Marketer","Blockchain Dev"];
+
+const COFOUNDER_ROLES = ["Cofounder","Co-Founder","Full-Stack Dev","Backend Dev","Frontend Dev","Product Manager"];
+const HACKATHON_TAGS = ["hackathon","hack","hacking","hackatho","hacktahon","48h","24h","72h"];
+
+type TabId = "all" | "cofounders" | "hackathons";
+
+const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+  { id: "all",       label: "All Ideas",   icon: Rocket },
+  { id: "cofounders", label: "Cofounders", icon: Users },
+  { id: "hackathons", label: "Hackathons", icon: Trophy },
+];
 
 export default function Startups() {
   const { data: ideas, loading, setData: setIdeas } = useAsync(api.ideas);
@@ -25,6 +36,7 @@ export default function Startups() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const [activeTab, setActiveTab] = useState<TabId>("all");
   const [voted, setVoted] = useState<Record<string, boolean>>({});
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
@@ -146,12 +158,32 @@ export default function Startups() {
     setTagInput("");
   };
 
+  // Filtered ideas based on active tab
+  const filteredIdeas = (() => {
+    if (!ideas) return [];
+    if (activeTab === "cofounders") {
+      return ideas.filter((idea) =>
+        idea.lookingFor.some((r) =>
+          COFOUNDER_ROLES.some((cr) => r.toLowerCase().includes(cr.toLowerCase())),
+        ) || idea.tags.some((t) => ["cofounder","cofound","co-found","startup"].includes(t.toLowerCase())),
+      );
+    }
+    if (activeTab === "hackathons") {
+      return ideas.filter((idea) =>
+        idea.tags.some((t) => HACKATHON_TAGS.some((ht) => t.toLowerCase().includes(ht))) ||
+        idea.title.toLowerCase().includes("hackathon") ||
+        idea.pitch.toLowerCase().includes("hackathon"),
+      );
+    }
+    return ideas;
+  })();
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold text-white">Startup Builder</h1>
-          <p className="text-sm text-slate-400">Post an idea, recruit cofounders, discover what others are building.</p>
+          <p className="text-sm text-white/30">Post ideas, find cofounders, assemble hackathon teams.</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" loading={generating} onClick={generate}>
@@ -162,6 +194,75 @@ export default function Startups() {
           </Button>
         </div>
       </header>
+
+      {/* ── Tabs ── */}
+      <div className="flex gap-1 rounded-xl border border-white/[0.07] bg-white/[0.02] p-1 w-fit flex-wrap">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "relative flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition",
+              activeTab === tab.id ? "text-white" : "text-white/35 hover:text-white/60",
+            )}
+          >
+            {activeTab === tab.id && (
+              <motion.span layoutId="startup-tab" className="absolute inset-0 rounded-lg bg-white/[0.07]" />
+            )}
+            <tab.icon className="relative h-3.5 w-3.5" />
+            <span className="relative">{tab.label}</span>
+            {tab.id !== "all" && (
+              <span className={cn(
+                "relative rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                activeTab === tab.id
+                  ? "bg-neon-cyan/10 text-neon-cyan/70"
+                  : "bg-white/[0.06] text-white/25",
+              )}>
+                {tab.id === "cofounders"
+                  ? (ideas ?? []).filter((idea) =>
+                      idea.lookingFor.some((r) =>
+                        COFOUNDER_ROLES.some((cr) => r.toLowerCase().includes(cr.toLowerCase())),
+                      )
+                    ).length
+                  : (ideas ?? []).filter((idea) =>
+                      idea.tags.some((t) => HACKATHON_TAGS.some((ht) => t.toLowerCase().includes(ht))) ||
+                      idea.title.toLowerCase().includes("hackathon")
+                    ).length
+                }
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab descriptions */}
+      {activeTab === "cofounders" && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 rounded-xl border border-neon-cyan/10 bg-neon-cyan/[0.04] px-4 py-3"
+        >
+          <Users className="h-4 w-4 text-neon-cyan/60 shrink-0" />
+          <p className="text-sm text-white/50">
+            Ideas looking for cofounders or key team members. Apply to join and build together.
+          </p>
+        </motion.div>
+      )}
+      {activeTab === "hackathons" && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 rounded-xl border border-[#4d7fff]/10 bg-[#4d7fff]/[0.04] px-4 py-3"
+        >
+          <Trophy className="h-4 w-4 text-[#4d7fff]/60 shrink-0" />
+          <p className="text-sm text-white/50">
+            Hackathon projects looking for balanced teams. Fast-track assembly in under 60 seconds.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setShowPost(true)} className="ml-auto shrink-0">
+            <Plus className="h-3 w-3" /> Post hackathon
+          </Button>
+        </motion.div>
+      )}
 
       {/* Post Idea Modal */}
       <AnimatePresence>
@@ -414,15 +515,33 @@ export default function Startups() {
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
         </div>
-      ) : ideas.length === 0 ? (
+      ) : filteredIdeas.length === 0 ? (
         <GlassCard className="py-16 text-center">
-          <Rocket className="mx-auto mb-4 h-10 w-10 text-neon-magenta opacity-50" />
-          <p className="text-slate-400">No startup ideas yet. Be the first to post one!</p>
-          <Button className="mt-4" onClick={() => setShowPost(true)}><Plus className="h-4 w-4" /> Post first idea</Button>
+          {activeTab === "hackathons" ? (
+            <>
+              <Trophy className="mx-auto mb-4 h-10 w-10 text-[#4d7fff] opacity-50" />
+              <p className="text-white/40 mb-2">No hackathon ideas yet.</p>
+              <p className="text-sm text-white/25 mb-4">Post an idea and tag it with "hackathon" to show here.</p>
+            </>
+          ) : activeTab === "cofounders" ? (
+            <>
+              <Users className="mx-auto mb-4 h-10 w-10 text-neon-cyan opacity-50" />
+              <p className="text-white/40 mb-2">No cofounder opportunities yet.</p>
+              <p className="text-sm text-white/25 mb-4">Post an idea and specify the roles you're looking for.</p>
+            </>
+          ) : (
+            <>
+              <Rocket className="mx-auto mb-4 h-10 w-10 text-neon-cyan opacity-50" />
+              <p className="text-white/40">No startup ideas yet. Be the first to post one!</p>
+            </>
+          )}
+          <Button className="mt-4" onClick={() => setShowPost(true)}>
+            <Plus className="h-4 w-4" /> Post first idea
+          </Button>
         </GlassCard>
       ) : (
         <div className="space-y-4">
-          {ideas.map((idea, i) => {
+          {filteredIdeas.map((idea, i) => {
             const isVoted = voted[idea.id] ?? false;
             const isOwner = user?.id === idea.author.id;
             const hasApplied = applied.has(idea.id);

@@ -11,6 +11,7 @@ const createSchema = z.object({
   title: z.string().min(1),
   priority: z.enum(["low", "med", "high"]).optional().default("med"),
   assigneeId: z.string().optional(),
+  status: z.enum(["todo", "in_progress", "review", "done"]).optional().default("todo"),
 });
 
 const updateSchema = z.object({
@@ -45,6 +46,7 @@ export async function createTask(req: AuthedRequest, res: Response) {
     team: body.teamId,
     title: body.title,
     priority: body.priority,
+    status: body.status,
     assignee: body.assigneeId ?? null,
   });
   const populated = await Task.findById(task._id).populate("assignee", ASSIGNEE_FIELDS).lean();
@@ -58,4 +60,11 @@ export async function updateTask(req: AuthedRequest, res: Response) {
     .lean();
   if (!task) return res.status(404).json({ error: "Not found" });
   res.json({ task });
+}
+
+export async function deleteTask(req: AuthedRequest, res: Response) {
+  const task = await Task.findById(req.params.id).lean();
+  if (!task) return res.status(404).json({ error: "Not found" });
+  await Task.findByIdAndDelete(req.params.id);
+  res.json({ ok: true });
 }

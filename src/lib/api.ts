@@ -297,6 +297,15 @@ export const api = {
     return normalizeTeam(team);
   },
 
+  deleteTeam: async (id: string): Promise<void> => {
+    await apiFetch(`/teams/${id}`, { method: "DELETE" });
+  },
+
+  teamTasks: async (teamId: string): Promise<Task[]> => {
+    const { tasks } = await apiFetch<{ tasks: any[] }>(`/teams/${teamId}/tasks`);
+    return tasks.map(normalizeTask);
+  },
+
   // Ideas / Startups
   ideas: async (): Promise<StartupIdea[]> => {
     const { ideas } = await apiFetch<{ ideas: any[] }>("/ideas");
@@ -345,7 +354,7 @@ export const api = {
     return tasks.map(normalizeTask);
   },
 
-  createTask: async (data: { teamId: string; title: string; priority?: string; assigneeId?: string }): Promise<Task> => {
+  createTask: async (data: { teamId: string; title: string; priority?: string; assigneeId?: string; status?: string }): Promise<Task> => {
     const { task } = await apiFetch<{ task: any }>("/tasks", {
       method: "POST",
       body: JSON.stringify(data),
@@ -359,6 +368,15 @@ export const api = {
       body: JSON.stringify(patch),
     });
     return normalizeTask(task);
+  },
+
+  deleteTask: async (id: string): Promise<void> => {
+    await apiFetch(`/tasks/${id}`, { method: "DELETE" });
+  },
+
+  removeMember: async (teamId: string, memberId: string): Promise<Team> => {
+    const { team } = await apiFetch<{ team: any }>(`/teams/${teamId}/members/${memberId}`, { method: "DELETE" });
+    return normalizeTeam(team);
   },
 
   // Chat
