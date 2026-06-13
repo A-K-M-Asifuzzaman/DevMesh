@@ -47,10 +47,11 @@ const PRIORITY = {
 
 /* ─── Task card ─────────────────────────────────────────────────── */
 function TaskCard({
-  task, onMove, moving,
+  task, onMove, onDelete, moving,
 }: {
   task: Task;
   onMove: (id: string, status: ColId) => void;
+  onDelete: (id: string) => void;
   moving: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,6 +66,9 @@ function TaskCard({
   }, []);
 
   const priority = PRIORITY[(task.priority as keyof typeof PRIORITY) ?? "med"];
+  const colIdx = COLUMNS.findIndex((c) => c.id === task.status);
+  const prevCol = colIdx > 0 ? COLUMNS[colIdx - 1] : null;
+  const nextCol = colIdx < COLUMNS.length - 1 ? COLUMNS[colIdx + 1] : null;
   const otherCols = COLUMNS.filter((c) => c.id !== task.status);
 
   return (
@@ -86,10 +90,29 @@ function TaskCard({
         </button>
       </div>
 
-      <div className="mt-2.5 flex items-center gap-2">
+      <div className="mt-2.5 flex items-center gap-1">
         <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-bold", priority.cls)}>
           {priority.label}
         </span>
+        {/* Status navigation arrows */}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition ml-1">
+          <button
+            disabled={!prevCol}
+            onClick={() => prevCol && onMove(task.id, prevCol.id as ColId)}
+            className="grid h-4 w-4 place-items-center rounded text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition disabled:opacity-20 disabled:cursor-not-allowed"
+            title={prevCol ? `Move to ${prevCol.label}` : "Already first"}
+          >
+            <ChevronLeft className="h-3 w-3" />
+          </button>
+          <button
+            disabled={!nextCol}
+            onClick={() => nextCol && onMove(task.id, nextCol.id as ColId)}
+            className="grid h-4 w-4 place-items-center rounded text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition disabled:opacity-20 disabled:cursor-not-allowed"
+            title={nextCol ? `Move to ${nextCol.label}` : "Already last"}
+          >
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
         {task.assignee && (
           <div className="ml-auto flex items-center gap-1.5">
             <div className="h-5 w-5 rounded-full bg-neon-cyan/[0.12] border border-neon-cyan/25 grid place-items-center">
@@ -127,6 +150,14 @@ function TaskCard({
                 {col.label}
               </button>
             ))}
+            <div className="my-1 h-px bg-white/[0.05]" />
+            <button
+              onClick={() => { onDelete(task.id); setMenuOpen(false); }}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-red-400/60 hover:bg-red-500/[0.07] hover:text-red-400 transition"
+            >
+              <Trash2 className="h-3 w-3" />
+              Delete task
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -164,6 +195,7 @@ export default function Teams() {
   const [showSettings, setShowSettings] = useState<Team | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [removingMember, setRemovingMember] = useState<string | null>(null);
 
   /* Create team form */
   const [name, setName] = useState("");
@@ -242,6 +274,28 @@ export default function Teams() {
       setBoardTasks(tasks);
     } catch { setBoardTasks([]); }
     finally { setLoadingTasks(false); }
+  };
+
+  /* ── Delete task ── */
+  const deleteTask = async (taskId: string) => {
+    try {
+      await api.deleteTask(taskId);
+      setBoardTasks((prev) => prev.filter((t) => t.id !== taskId));
+    } catch { toast("Failed to delete task", "error"); }
+  };
+
+  /* ── Remove member ── */
+  const doRemoveMember = async (memberId: string) => {
+    if (!showSettings) return;
+    setRemovingMember(memberId);
+    try {
+      const updated = await api.removeMember(showSettings.id, memberId);
+      setShowSettings(updated);
+      setMyTeams((prev) => (prev ?? []).map((t) => t.id === updated.id ? updated : t));
+      toast("Member removed");
+    } catch (err: any) {
+      toast(err.message ?? "Failed to remove member", "error");
+    } finally { setRemovingMember(null); }
   };
 
   /* ── Move task ── */
@@ -362,6 +416,7 @@ export default function Teams() {
                         key={task.id}
                         task={task}
                         onMove={moveTask}
+                        onDelete={deleteTask}
                         moving={movingTask === task.id}
                       />
                     ))}
@@ -681,11 +736,22 @@ export default function Teams() {
                           <p className="text-sm text-white truncate">{m.name}</p>
                           <p className="text-xs text-white/30 truncate">{m.role || "Developer"}</p>
                         </div>
-                        {showSettings.ownerId === m.id && (
+                        {showSettings.ownerId === m.id ? (
                           <div className="flex items-center gap-1 rounded-md border border-yellow-500/20 bg-yellow-500/[0.07] px-1.5 py-0.5">
                             <Crown className="h-2.5 w-2.5 text-yellow-500/70" />
                             <span className="text-[9px] font-semibold text-yellow-500/70">Owner</span>
                           </div>
+                        ) : isOwner(showSettings) && (
+                          <button
+                            disabled={removingMember === m.id}
+                            onClick={() => doRemoveMember(m.id)}
+                            className="grid h-6 w-6 place-items-center rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/[0.08] transition disabled:opacity-40"
+                            title="Remove member"
+                          >
+                            {removingMember === m.id
+                              ? <span className="h-3 w-3 rounded-full border border-white/20 border-t-white/60 animate-spin block" />
+                              : <UserMinus className="h-3.5 w-3.5" />}
+                          </button>
                         )}
                       </div>
                     ))}
@@ -875,28 +941,36 @@ export default function Teams() {
                           <Avatar key={m.id} src={m.avatar} name={m.name} size={26} className="ring-2 ring-ink-950" />
                         ))}
                       </div>
-                      <span className="text-xs text-white/25">{t.members.length} members</span>
+                      <span className="text-xs text-white/25">{t.members.length} member{t.members.length !== 1 ? "s" : ""}</span>
                     </div>
 
                     {t.stack.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {t.stack.slice(0, 4).map((s) => <Badge key={s}>{s}</Badge>)}
+                        {t.stack.length > 4 && <Badge>+{t.stack.length - 4}</Badge>}
                       </div>
                     )}
                     {t.openRoles.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {t.openRoles.map((r) => <Badge key={r} tone="cyan">{r}</Badge>)}
+                      <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                        <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-neon-cyan/60">
+                          <Layers className="h-3 w-3" /> Open roles
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {t.openRoles.map((r) => <Badge key={r} tone="cyan">{r}</Badge>)}
+                        </div>
                       </div>
                     )}
 
-                    <Button
-                      size="sm"
-                      className="mt-auto pt-4 w-full"
-                      loading={joining === t.id}
-                      onClick={() => joinTeam(t.id)}
-                    >
-                      <Check className="h-3.5 w-3.5" /> Request to join
-                    </Button>
+                    <div className="mt-auto pt-4">
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        loading={joining === t.id}
+                        onClick={() => joinTeam(t.id)}
+                      >
+                        <Check className="h-3.5 w-3.5" /> Request to join
+                      </Button>
+                    </div>
                   </GlassCard>
                 </motion.div>
               ))}

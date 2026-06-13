@@ -108,42 +108,41 @@
    LIGHT MODE
    ════════════════════════════════════════════════════════ */
 html:not(.dark) body {
-  background-color: #f7f7f8;
+  background-color: #f0f0f3;
   color: #111111;
 }
 
 /* Aurora/background in light mode */
-html:not(.dark) [class*="aurora"],
 html:not(.dark) .pointer-events-none.fixed.-z-10 {
-  opacity: 0.15;
+  opacity: 0.10;
 }
 
 /* Glass cards in light mode */
 html:not(.dark) .glass {
-  background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(0, 0, 0, 0.07);
   box-shadow:
-    0 1px 1px rgba(0,0,0,0.04),
-    0 4px 24px rgba(0,0,0,0.08),
-    0 1px 0 rgba(255,255,255,0.9) inset;
-  backdrop-filter: blur(20px) saturate(1.5);
+    0 1px 1px rgba(0,0,0,0.03),
+    0 4px 20px rgba(0,0,0,0.06),
+    0 1px 0 rgba(255,255,255,0.95) inset;
+  backdrop-filter: blur(20px) saturate(1.6);
 }
 html:not(.dark) .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(0, 0, 0, 0.10);
 }
 
 /* Dividers */
 html:not(.dark) .hairline {
-  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.07), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.06), transparent);
 }
 html:not(.dark) .section-line {
-  border-color: rgba(0, 0, 0, 0.07);
+  border-color: rgba(0, 0, 0, 0.06);
 }
 
 /* Scrollbar */
 html:not(.dark) ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.10);
 }
 html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 217, 255, 0.3);
@@ -157,31 +156,36 @@ html:not(.dark) .skeleton::after {
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
 }
 
-/* ── Light mode text overrides ─────────────────────────────
-   These map white-based Tailwind classes to dark text.
-   They use !important to override the generated utilities. */
-html:not(.dark) .text-white { color: rgba(10,10,10,0.90) !important; }
-html:not(.dark) .text-white\/80 { color: rgba(10,10,10,0.80) !important; }
-html:not(.dark) .text-white\/75 { color: rgba(10,10,10,0.75) !important; }
-html:not(.dark) .text-white\/70 { color: rgba(10,10,10,0.70) !important; }
-html:not(.dark) .text-white\/65 { color: rgba(10,10,10,0.65) !important; }
-html:not(.dark) .text-white\/60 { color: rgba(10,10,10,0.60) !important; }
-html:not(.dark) .text-white\/50 { color: rgba(10,10,10,0.50) !important; }
-html:not(.dark) .text-white\/40 { color: rgba(10,10,10,0.42) !important; }
-html:not(.dark) .text-white\/35 { color: rgba(10,10,10,0.40) !important; }
-html:not(.dark) .text-white\/30 { color: rgba(10,10,10,0.35) !important; }
-html:not(.dark) .text-white\/25 { color: rgba(10,10,10,0.28) !important; }
-html:not(.dark) .text-white\/20 { color: rgba(10,10,10,0.25) !important; }
-html:not(.dark) .text-white\/15 { color: rgba(10,10,10,0.20) !important; }
-html:not(.dark) .text-slate-400 { color: rgba(10,10,10,0.50) !important; }
-html:not(.dark) .text-slate-500 { color: rgba(10,10,10,0.42) !important; }
-html:not(.dark) .text-slate-300 { color: rgba(10,10,10,0.60) !important; }
+/* ── Light mode text overrides ── */
+html:not(.dark) .text-white          { color: rgba(10,10,10,0.90) !important; }
+html:not(.dark) .text-white\/90      { color: rgba(10,10,10,0.85) !important; }
+html:not(.dark) .text-white\/80      { color: rgba(10,10,10,0.80) !important; }
+html:not(.dark) .text-white\/75      { color: rgba(10,10,10,0.75) !important; }
+html:not(.dark) .text-white\/70      { color: rgba(10,10,10,0.70) !important; }
+html:not(.dark) .text-white\/65      { color: rgba(10,10,10,0.65) !important; }
+html:not(.dark) .text-white\/60      { color: rgba(10,10,10,0.60) !important; }
+html:not(.dark) .text-white\/55      { color: rgba(10,10,10,0.55) !important; }
+html:not(.dark) .text-white\/50      { color: rgba(10,10,10,0.50) !important; }
+html:not(.dark) .text-white\/45      { color: rgba(10,10,10,0.45) !important; }
+html:not(.dark) .text-white\/40      { color: rgba(10,10,10,0.42) !important; }
+html:not(.dark) .text-white\/35      { color: rgba(10,10,10,0.38) !important; }
+html:not(.dark) .text-white\/30      { color: rgba(10,10,10,0.34) !important; }
+html:not(.dark) .text-white\/25      { color: rgba(10,10,10,0.28) !important; }
+html:not(.dark) .text-white\/20      { color: rgba(10,10,10,0.24) !important; }
+html:not(.dark) .text-white\/15      { color: rgba(10,10,10,0.19) !important; }
+html:not(.dark) .text-white\/10      { color: rgba(10,10,10,0.14) !important; }
+html:not(.dark) .text-slate-100      { color: rgba(10,10,10,0.85) !important; }
+html:not(.dark) .text-slate-200      { color: rgba(10,10,10,0.75) !important; }
+html:not(.dark) .text-slate-300      { color: rgba(10,10,10,0.62) !important; }
+html:not(.dark) .text-slate-400      { color: rgba(10,10,10,0.50) !important; }
+html:not(.dark) .text-slate-500      { color: rgba(10,10,10,0.42) !important; }
+html:not(.dark) .text-slate-600      { color: rgba(10,10,10,0.34) !important; }
 
 /* ── Light mode background overrides ── */
-html:not(.dark) .bg-white\/\[0\.03\],
-html:not(.dark) .bg-white\/\[0\.02\],
 html:not(.dark) .bg-white\/\[0\.018\],
-html:not(.dark) .bg-white\/\[0\.025\] {
+html:not(.dark) .bg-white\/\[0\.02\],
+html:not(.dark) .bg-white\/\[0\.025\],
+html:not(.dark) .bg-white\/\[0\.03\] {
   background-color: rgba(0, 0, 0, 0.03) !important;
 }
 html:not(.dark) .bg-white\/\[0\.04\],
@@ -189,39 +193,65 @@ html:not(.dark) .bg-white\/\[0\.05\],
 html:not(.dark) .bg-white\/\[0\.06\],
 html:not(.dark) .bg-white\/\[0\.07\],
 html:not(.dark) .bg-white\/\[0\.08\] {
-  background-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(0, 0, 0, 0.04) !important;
 }
-html:not(.dark) .bg-white\/10 { background-color: rgba(0,0,0,0.08) !important; }
+html:not(.dark) .bg-white\/5         { background-color: rgba(0,0,0,0.03) !important; }
+html:not(.dark) .bg-white\/10        { background-color: rgba(0,0,0,0.06) !important; }
+html:not(.dark) .bg-black\/50        { background-color: rgba(0,0,0,0.35) !important; }
+
+/* Dark hard-coded bg colours used in modals/context menus/selects */
+html:not(.dark) .bg-\[\#0a0a0a\]    { background-color: #f5f5f8 !important; color: #111 !important; }
+html:not(.dark) .bg-\[\#0d0d0d\]    { background-color: #f5f5f8 !important; }
 
 /* ── Light mode border overrides ── */
+html:not(.dark) .border-white\/\[0\.04\]  { border-color: rgba(0,0,0,0.06) !important; }
 html:not(.dark) .border-white\/\[0\.05\],
 html:not(.dark) .border-white\/\[0\.06\],
 html:not(.dark) .border-white\/\[0\.07\],
-html:not(.dark) .border-white\/\[0\.08\] { border-color: rgba(0,0,0,0.09) !important; }
-html:not(.dark) .border-white\/10 { border-color: rgba(0,0,0,0.10) !important; }
-html:not(.dark) .border-white\/\[0\.04\] { border-color: rgba(0,0,0,0.07) !important; }
+html:not(.dark) .border-white\/\[0\.08\]  { border-color: rgba(0,0,0,0.08) !important; }
+html:not(.dark) .border-white\/10         { border-color: rgba(0,0,0,0.10) !important; }
+html:not(.dark) .border-white\/\[0\.12\]  { border-color: rgba(0,0,0,0.10) !important; }
 html:not(.dark) .divide-white\/\[0\.05\] > * { border-color: rgba(0,0,0,0.07) !important; }
 
-/* ── Light mode — ink palette (dark bg classes used in app shell) ── */
+/* ── Light mode — ink palette ── */
 html:not(.dark) .bg-ink-950,
-html:not(.dark) .bg-ink-900 { background-color: #f0f0f2 !important; }
-html:not(.dark) .bg-ink-800 { background-color: #e8e8ea !important; }
-html:not(.dark) .bg-ink-700 { background-color: #e0e0e2 !important; }
+html:not(.dark) .bg-ink-900 { background-color: #e8e8ec !important; }
+html:not(.dark) .bg-ink-800 { background-color: #e0e0e4 !important; }
+html:not(.dark) .bg-ink-700 { background-color: #d8d8dc !important; }
 html:not(.dark) .border-ink-800 { border-color: rgba(0,0,0,0.10) !important; }
+html:not(.dark) .ring-ink-950  { --tw-ring-color: rgba(232,232,236,1) !important; }
 
 /* ── Nav in light mode ── */
-html:not(.dark) .fixed.inset-x-0 [style*="rgba(0,0,0,0.82)"] {
-  background: rgba(245,245,247,0.92) !important;
-  border-color: rgba(0,0,0,0.08) !important;
+html:not(.dark) .fixed.inset-x-0 [style*="rgba(0,0,0,0.82)"],
+html:not(.dark) nav[style*="background"] {
+  background: rgba(240,240,243,0.94) !important;
+  border-color: rgba(0,0,0,0.07) !important;
 }
 
-/* ── Input fields in light mode ── */
+/* ── Input & select in light mode ── */
 html:not(.dark) input,
-html:not(.dark) textarea,
+html:not(.dark) textarea {
+  color: #111 !important;
+}
 html:not(.dark) select {
   color: #111 !important;
+  background-color: rgba(255,255,255,0.8) !important;
 }
 html:not(.dark) input::placeholder,
 html:not(.dark) textarea::placeholder {
-  color: rgba(10,10,10,0.30) !important;
+  color: rgba(10,10,10,0.28) !important;
+}
+html:not(.dark) select option {
+  background: #fff;
+  color: #111;
+}
+
+/* ── Neon-soft gradient banner in light mode ── */
+html:not(.dark) .bg-neon-soft {
+  background: linear-gradient(135deg, rgba(0,217,255,0.15) 0%, rgba(77,127,255,0.15) 100%) !important;
+}
+
+/* ── Context menu shadow in light mode ── */
+html:not(.dark) .shadow-\[0_8px_32px_rgba\(0\,0\,0\,0\.8\)\] {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06) !important;
 }

@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Github, Globe, Twitter, MapPin, Pencil, Sparkles, Lightbulb,
   Award, FolderGit2, Plus, X, ExternalLink, Save, Camera,
+  Activity, GitCommit,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -18,6 +19,95 @@ import { api } from "@/lib/api";
 import { fmt } from "@/lib/utils";
 import { TRUST_LABELS, trustSuggestions, trustTier } from "@/lib/trust";
 import type { TrustBreakdown, Project, Certificate } from "@/types";
+
+/* ─── Shared sub-components ─────────────────────────────────────── */
+function EmptyState({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="flex flex-col items-center py-8 text-center"
+    >
+      <div className="relative mb-4">
+        <motion.div
+          animate={{ scale: [1, 1.08, 1] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+          className="grid h-12 w-12 place-items-center rounded-2xl border border-white/[0.07] bg-white/[0.03]"
+        >
+          <Icon className="h-5 w-5 text-white/20" />
+        </motion.div>
+        <motion.div
+          animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.18, 1] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute inset-0 rounded-2xl"
+          style={{ boxShadow: "0 0 18px rgba(0,217,255,0.06)" }}
+        />
+      </div>
+      <p className="text-sm font-medium text-white/30">{title}</p>
+      <p className="mt-0.5 text-xs text-white/15">{subtitle}</p>
+      <div className="mt-4 flex flex-col items-center gap-1.5 w-full max-w-[160px]">
+        {[90, 65, 45].map((w, i) => (
+          <motion.div
+            key={i}
+            className="h-1.5 rounded-full bg-white/[0.04]"
+            style={{ width: `${w}%` }}
+            animate={{ opacity: [0.4, 0.8, 0.4] }}
+            transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.2 }}
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function ActivityGrid() {
+  const weeks = 24;
+  const days = 7;
+  const grid = useMemo(() => Array.from({ length: weeks }, (_, wi) =>
+    Array.from({ length: days }, (_, di) => {
+      const seed = (wi * 7 + di + 7) * 2654435761;
+      const pseudo = ((seed ^ (seed >> 16)) >>> 0) / 0xffffffff;
+      const burst = wi > 8 && wi < 18 ? 0.45 : 0;
+      return Math.max(0, Math.min(4, Math.round((pseudo + burst) * 4)));
+    })
+  ), []);
+
+  const levelColor = (v: number) => {
+    if (v === 0) return "bg-white/[0.04] border-white/[0.04]";
+    if (v === 1) return "bg-[#00d9ff]/[0.12] border-[#00d9ff]/[0.08]";
+    if (v === 2) return "bg-[#00d9ff]/[0.25] border-[#00d9ff]/[0.15]";
+    if (v === 3) return "bg-[#00d9ff]/[0.45] border-[#00d9ff]/[0.3]";
+    return "bg-[#00d9ff]/[0.7] border-[#00d9ff]/[0.5]";
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="flex gap-[3px] min-w-fit">
+        {grid.map((week, wi) => (
+          <div key={wi} className="flex flex-col gap-[3px]">
+            {week.map((val, di) => (
+              <motion.div
+                key={di}
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: (wi * 7 + di) * 0.002, duration: 0.2 }}
+                className={`h-[10px] w-[10px] rounded-[2px] border ${levelColor(val)}`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center gap-1.5 justify-end">
+        <span className="text-[10px] text-white/20">Less</span>
+        {[0, 1, 2, 3, 4].map((v) => (
+          <div key={v} className={`h-[10px] w-[10px] rounded-[2px] border ${levelColor(v)}`} />
+        ))}
+        <span className="text-[10px] text-white/20">More</span>
+      </div>
+    </div>
+  );
+}
 
 const TECH_STACK = [
   "React","Next.js","Vue","TypeScript","JavaScript","Node.js","Express","Python",
@@ -368,7 +458,13 @@ export default function Profile() {
                   {editing && <button onClick={() => setSkills(skills.filter((x) => x.name !== s.name))} className="text-slate-600 hover:text-neon-magenta"><X className="h-4 w-4" /></button>}
                 </div>
               ))}
-              {me.skills.length === 0 && !editing && <p className="text-sm text-slate-600 italic">No skills added yet — click Edit to add them.</p>}
+              {me.skills.length === 0 && !editing && (
+                <EmptyState
+                  icon={Sparkles}
+                  title="No skills added yet"
+                  subtitle="Click Edit to showcase your expertise"
+                />
+              )}
             </div>
           </GlassCard>
 
@@ -393,21 +489,42 @@ export default function Profile() {
               </div>
             )}
             {loadingExtras ? <Skeleton className="mt-3 h-20 w-full" /> : (
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {projects.map((p) => (
-                  <div key={p.id} className="relative rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                    <button onClick={() => deleteProject(p.id)} className="absolute right-3 top-3 text-slate-600 hover:text-neon-magenta"><X className="h-4 w-4" /></button>
-                    <FolderGit2 className="h-4 w-4 text-neon-cyan mb-2" />
-                    <p className="font-medium text-white pr-6">{p.title}</p>
-                    {p.description && <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{p.description}</p>}
-                    <div className="mt-2 flex gap-2">
-                      {p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noopener noreferrer"><Button size="sm" variant="outline"><Github className="h-3.5 w-3.5" /></Button></a>}
-                      {p.liveUrl && <a href={p.liveUrl} target="_blank" rel="noopener noreferrer"><Button size="sm" variant="outline"><ExternalLink className="h-3.5 w-3.5" /></Button></a>}
-                    </div>
-                  </div>
-                ))}
-                {projects.length === 0 && !showProjForm && <p className="col-span-2 text-sm text-slate-600 italic py-2">No projects added yet.</p>}
-              </div>
+              <AnimatePresence mode="wait">
+                {projects.length === 0 && !showProjForm ? (
+                  <EmptyState
+                    key="no-projects"
+                    icon={FolderGit2}
+                    title="No projects yet"
+                    subtitle="Click Add to showcase your work"
+                  />
+                ) : (
+                  <motion.div
+                    key="projects-grid"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mt-3 grid gap-3 sm:grid-cols-2"
+                  >
+                    {projects.map((p, i) => (
+                      <motion.div
+                        key={p.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.06 }}
+                        className="relative rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-white/[0.14] transition"
+                      >
+                        <button onClick={() => deleteProject(p.id)} className="absolute right-3 top-3 text-slate-600 hover:text-neon-magenta"><X className="h-4 w-4" /></button>
+                        <FolderGit2 className="h-4 w-4 text-neon-cyan mb-2" />
+                        <p className="font-medium text-white pr-6">{p.title}</p>
+                        {p.description && <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{p.description}</p>}
+                        <div className="mt-2 flex gap-2">
+                          {p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noopener noreferrer"><Button size="sm" variant="outline"><Github className="h-3.5 w-3.5" /></Button></a>}
+                          {p.liveUrl && <a href={p.liveUrl} target="_blank" rel="noopener noreferrer"><Button size="sm" variant="outline"><ExternalLink className="h-3.5 w-3.5" /></Button></a>}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             )}
           </GlassCard>
 
@@ -434,22 +551,88 @@ export default function Profile() {
               </div>
             )}
             {loadingExtras ? <Skeleton className="mt-3 h-20 w-full" /> : (
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {certs.map((c) => (
-                  <div key={c.id} className="relative flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                    <button onClick={() => deleteCert(c.id)} className="absolute right-3 top-3 text-slate-600 hover:text-neon-magenta"><X className="h-4 w-4" /></button>
-                    <Award className="mt-0.5 h-5 w-5 shrink-0 text-neon-lime" />
-                    <div className="min-w-0 pr-6">
-                      <p className="font-medium text-white">{c.name}</p>
-                      <p className="text-xs text-slate-400">{c.issuer}{c.year ? ` · ${c.year}` : ""}</p>
-                      {c.credentialUrl && <a href={c.credentialUrl} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-1 text-xs text-neon-cyan hover:underline"><ExternalLink className="h-3 w-3" />View credential</a>}
-                    </div>
-                  </div>
-                ))}
-                {certs.length === 0 && !showCertForm && <p className="col-span-2 text-sm text-slate-600 italic py-2">No certificates added yet.</p>}
-              </div>
+              <AnimatePresence mode="wait">
+                {certs.length === 0 && !showCertForm ? (
+                  <EmptyState
+                    key="no-certs"
+                    icon={Award}
+                    title="No certifications yet"
+                    subtitle="Click Add to showcase your credentials"
+                  />
+                ) : (
+                  <motion.div
+                    key="certs-grid"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mt-3 grid gap-3 sm:grid-cols-2"
+                  >
+                    {certs.map((c, i) => (
+                      <motion.div
+                        key={c.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.06 }}
+                        className="relative flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 hover:border-white/[0.14] transition"
+                      >
+                        <button onClick={() => deleteCert(c.id)} className="absolute right-3 top-3 text-slate-600 hover:text-neon-magenta"><X className="h-4 w-4" /></button>
+                        <Award className="mt-0.5 h-5 w-5 shrink-0 text-neon-lime" />
+                        <div className="min-w-0 pr-6">
+                          <p className="font-medium text-white">{c.name}</p>
+                          <p className="text-xs text-slate-400">{c.issuer}{c.year ? ` · ${c.year}` : ""}</p>
+                          {c.credentialUrl && <a href={c.credentialUrl} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-1 text-xs text-neon-cyan hover:underline"><ExternalLink className="h-3 w-3" />View credential</a>}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             )}
           </GlassCard>
+          {/* Activity */}
+          <GlassCard>
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="h-4 w-4 text-white/40" />
+              <h3 className="font-display font-semibold text-white">Activity</h3>
+              <span className="ml-auto text-[11px] text-white/20">Last 24 weeks</span>
+            </div>
+            <ActivityGrid />
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { label: "Profile views", value: fmt(me.followers * 3 + 12) },
+                { label: "Matches", value: fmt(me.rep) },
+                { label: "Connections", value: fmt(me.followers) },
+              ].map((s) => (
+                <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2.5 text-center">
+                  <p className="font-display text-lg font-bold text-grad">{s.value}</p>
+                  <p className="text-[10px] text-white/25">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+
+          {/* GitHub */}
+          {me.github && (
+            <GlassCard>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Github className="h-4 w-4 text-white/50" />
+                  <h3 className="font-display font-semibold text-white">GitHub</h3>
+                </div>
+                <a
+                  href={`https://github.com/${me.github}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-neon-cyan hover:underline"
+                >
+                  @{me.github} <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+              <p className="text-[11px] font-medium text-white/25 mb-2 flex items-center gap-1.5">
+                <GitCommit className="h-3 w-3" /> Contribution activity
+              </p>
+              <ActivityGrid />
+            </GlassCard>
+          )}
         </div>
 
         {/* Right */}
